@@ -1,0 +1,2593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shift Manager Pro</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div id="root">
+        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; background-color: #f3f4f6; color: #374151;">
+            <div style="text-align: center;">
+                <h2 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 10px;">Loading Shift Manager Pro...</h2>
+                <p>If this screen stays for more than 5 seconds, please check your internet connection.</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const defaultCountries = [
+            { code: 'ID', name: 'Indonesia' },
+            { code: 'PH', name: 'Philipines' },
+            { code: 'TH', name: 'Thailand' },
+            { code: 'SG', name: 'Singapore' },
+            { code: 'AU', name: 'Australia' }
+        ];
+
+        const defaultEmployees = [
+            { id: 1, name: 'Galih', code: 'EMP001', group: 'Management', email: 'galih@company.com', phone: '555-0101', role: 'Manager', country: 'ID', color: '#3B82F6' },
+            { id: 2, name: 'Andri', code: 'EMP002', group: 'Tech Support', email: 'andri@company.com', phone: '555-0102', role: 'Staff', country: 'ID', color: '#10B981' },
+            { id: 3, name: 'Haikal', code: 'EMP003', group: 'Tech Support', email: 'haikal@company.com', phone: '555-0103', role: 'Staff', country: 'ID', color: '#F59E0B' },
+            { id: 4, name: 'Zulfikar', code: 'EMP004', group: 'Customer Service', email: 'zhulfikar@company.com', phone: '555-0104', role: 'Staff', country: 'ID', color: '#EF4444' },
+            { id: 5, name: 'Brian', code: 'EMP005', group: 'Customer Service', email: 'brian@company.com', phone: '555-0105', role: 'Staff', country: 'ID', color: '#8B5CF6' },
+            { id: 6, name: 'Cheeny', code: 'EMP006', group: 'Tech Support', email: 'cheeny@company.com', phone: '555-0106', role: 'Staff', country: 'PH', color: '#14B8A6' }
+        ];
+
+        const defaultShiftTypes = [
+            { id: 1, name: 'Morning', start: '08:00', end: '17:00', color: '#FEF3C7', shortName: 'A', regionCodes: { ID: 'TS-01', PH: 'TS-05' } },
+            { id: 2, name: 'Afternoon', start: '16:00', end: '01:00', color: '#DBEAFE', shortName: 'B', regionCodes: { ID: 'TS-02', PH: 'TS-06' } },
+            { id: 3, name: 'Night', start: '00:00', end: '09:00', color: '#E5E7EB', shortName: 'C', regionCodes: { ID: 'TS-03', PH: 'TS-07' } },
+            { id: 4, name: 'General', start: '09:00', end: '18:00', color: '#D1FAE5', shortName: 'G', regionCodes: { ID: 'MS', PH: 'TS-08' } },
+            { id: 5, name: 'Day Off', start: '', end: '', color: '#F3F4F6', shortName: 'OFF', regionCodes: { ID: 'ALL' } }
+        ];
+
+        const defaultHolidays = [
+            { id: 1, date: '2026-03-03', name: 'Nyepi', countryCode: 'ID' },
+            { id: 2, date: '2026-03-20', name: 'Idul Fitri', countryCode: 'ID' }
+        ];
+
+        const AddEmployeeModal = ({ countries, onClose, onAdd }) => {
+            const defaultCode = countries.length > 0 ? countries[0].code : '';
+            const [formData, setFormData] = useState({ name: '', code: '', group: '', email: '', phone: '', role: 'Staff', country: defaultCode });
+            
+            const handleSubmit = (e) => { e.preventDefault(); onAdd(formData); };
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+                        <h3 className="text-xl font-bold mb-4">Add New Employee</h3>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div><label className="block text-sm font-medium mb-1">Name</label><input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900" /></div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div><label className="block text-sm font-medium mb-1">Employee Code</label><input type="text" placeholder="e.g. EMP007" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900" /></div>
+                                <div><label className="block text-sm font-medium mb-1">Employee Group</label><input type="text" placeholder="e.g. Tech Support" value={formData.group} onChange={(e) => setFormData({ ...formData, group: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900" /></div>
+                            </div>
+                            <div><label className="block text-sm font-medium mb-1">Email</label><input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900" /></div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div><label className="block text-sm font-medium mb-1">Phone</label><input type="tel" required value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900" /></div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Country</label>
+                                    <select required value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900">
+                                        {countries.map(c => <option key={c.code} value={c.code}>{c.code} - {c.name}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Role</label>
+                                <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900">
+                                    <option value="Manager">Manager</option><option value="Staff">Staff</option>
+                                </select>
+                            </div>
+                            <div className="flex gap-2 justify-end mt-4">
+                                <button type="button" onClick={onClose} className="px-4 py-2 border dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">Cancel</button>
+                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add Employee</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        const EditEmployeeModal = ({ employee, countries, onClose, onUpdate }) => {
+            const [formData, setFormData] = useState({ code: '', group: '', ...employee });
+            const handleSubmit = (e) => { e.preventDefault(); onUpdate(employee.id, formData); };
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+                        <h3 className="text-xl font-bold mb-4">Edit Employee</h3>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div><label className="block text-sm font-medium mb-1">Name</label><input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900" /></div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div><label className="block text-sm font-medium mb-1">Employee Code</label><input type="text" placeholder="e.g. EMP007" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900" /></div>
+                                <div><label className="block text-sm font-medium mb-1">Employee Group</label><input type="text" placeholder="e.g. Tech Support" value={formData.group} onChange={(e) => setFormData({ ...formData, group: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900" /></div>
+                            </div>
+                            <div><label className="block text-sm font-medium mb-1">Email</label><input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900" /></div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div><label className="block text-sm font-medium mb-1">Phone</label><input type="tel" required value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900" /></div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Country</label>
+                                    <select required value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900">
+                                        {countries.map(c => <option key={c.code} value={c.code}>{c.code} - {c.name}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Role</label>
+                                <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900">
+                                    <option value="Manager">Manager</option><option value="Staff">Staff</option>
+                                </select>
+                            </div>
+                            <div className="flex gap-2 justify-end mt-4">
+                                <button type="button" onClick={onClose} className="px-4 py-2 border dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">Cancel</button>
+                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Update</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        const ShiftManagementApp = () => {
+            const [currentView, setCurrentView] = useState('schedule');
+            const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+            const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+            const [darkMode, setDarkMode] = useState(false);
+            
+            const [dataLoaded, setDataLoaded] = useState(false);
+            const [employees, setEmployees] = useState(defaultEmployees);
+            const [shiftTypes, setShiftTypes] = useState(defaultShiftTypes);
+            const [schedule, setSchedule] = useState({});
+            
+            const [countries, setCountries] = useState(defaultCountries);
+            const [holidays, setHolidays] = useState(defaultHolidays);
+            const [leaves, setLeaves] = useState([]);
+
+            const [editingEmployee, setEditingEmployee] = useState(null);
+            const [dragEmpId, setDragEmpId] = useState(null);
+            const [dragOverEmpId, setDragOverEmpId] = useState(null);
+            const [showAddEmployee, setShowAddEmployee] = useState(false);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [filterRole, setFilterRole] = useState('all');
+            
+            const [newHoliday, setNewHoliday] = useState({ date: '', name: '', countryCode: 'ID' });
+            const [newCountry, setNewCountry] = useState({ name: '', code: '' });
+            const [shiftRequests, setShiftRequests] = useState([]);
+            const [newRequest, setNewRequest] = useState({ empId: '', mode: 'date', date: '', weekday: '5', weekOfMonth: '1', dayScope: 'workdays', reqMonth: new Date().getMonth(), reqYear: new Date().getFullYear(), shiftId: '', note: '' });
+
+            const [toast, setToast] = useState(null);
+            const [adhocFrom, setAdhocFrom] = useState('');
+            const [adhocTo, setAdhocTo] = useState('');
+            const [savedRecords, setSavedRecords] = useState({});
+            const [leaveConfig, setLeaveConfig] = useState({ color: '#FB923C', regionCodes: { ID: 'ALL' } });
+            const [offRules, setOffRules] = useState({});
+
+            // Returns the configured OFF Day Rule for a region, or null if none is set. When set,
+            // it can only tighten the monthly OFF quota (a stricter cap below the natural
+            // weekend/holiday count) — it can never raise it above that natural count. The total
+            // number of OFF days in a month is always ceilinged at Saturdays + Sundays + public
+            // holidays for that region, so this is the value getEffectiveOffTarget clamps to.
+            const getMaxOffForRegion = (countryCode) => {
+                const val = offRules[countryCode];
+                if (val === undefined || val === null || val === '') return null;
+                const n = parseInt(val);
+                return isNaN(n) ? null : n;
+            };
+
+            // The effective monthly OFF target for an employee: Saturdays + Sundays + public
+            // holidays configured for their region in that month is the hard ceiling — the total
+            // number of OFF days can never pass this count. A region's configured OFF Day Rule can
+            // only lower that ceiling further (e.g. cap OFF at 5 even though the month naturally has
+            // 9 weekend/holiday days); it is ignored if it would raise the target above the natural
+            // count.
+            const getEffectiveOffTarget = (employee, month, year) => {
+                const natural = getNaturalOffDaysForRegion(employee.country, month, year);
+                const override = getMaxOffForRegion(employee.country);
+                if (override !== null) return Math.min(override, natural);
+                return natural;
+            };
+
+            const showToast = (message, type = 'success') => {
+                setToast({ message, type });
+                setTimeout(() => setToast(null), type === 'warning' ? 5000 : 3000);
+            };
+
+            useEffect(() => {
+                try {
+                    const savedData = localStorage.getItem('shiftManagerAppOfflineData');
+                    if (savedData) {
+                        const parsed = JSON.parse(savedData);
+                        if (parsed.employees) setEmployees(parsed.employees);
+                        if (parsed.shiftTypes) setShiftTypes(parsed.shiftTypes);
+                        if (parsed.schedule) setSchedule(parsed.schedule);
+                        if (parsed.darkMode !== undefined) setDarkMode(parsed.darkMode);
+                        if (parsed.countries) setCountries(parsed.countries);
+                        if (parsed.holidays) setHolidays(parsed.holidays);
+                        if (parsed.leaves) setLeaves(parsed.leaves);
+                        if (parsed.shiftRequests) setShiftRequests(parsed.shiftRequests);
+                        if (parsed.leaveConfig) setLeaveConfig(parsed.leaveConfig);
+                        if (parsed.offRules) setOffRules(parsed.offRules);
+                    }
+                    const savedRecordsRaw = localStorage.getItem('shiftManagerSavedRecords');
+                    if (savedRecordsRaw) setSavedRecords(JSON.parse(savedRecordsRaw));
+                } catch (e) { }
+                setDataLoaded(true);
+            }, []);
+
+            useEffect(() => {
+                if (dataLoaded) {
+                    try {
+                        localStorage.setItem('shiftManagerAppOfflineData', JSON.stringify({
+                            employees, shiftTypes, schedule, darkMode, countries, holidays, leaves, shiftRequests, leaveConfig, offRules
+                        }));
+                    } catch (e) { }
+                }
+            }, [employees, shiftTypes, schedule, darkMode, countries, holidays, leaves, shiftRequests, leaveConfig, offRules, dataLoaded]);
+
+            const monthNames = [
+                'January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+
+            const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
+            const formatDate = (day, month, year) => `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+            // Shared date-string arithmetic used by streak-cap checks (manual edits, Shift
+            // Requests, and Roster Excel upload all need to walk forward/backward by day).
+            const addDaysToDateStr = (dateStr, n) => {
+                const dt = new Date(dateStr + 'T00:00:00');
+                dt.setDate(dt.getDate() + n);
+                return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+            };
+
+            const getShiftIdForDate = (date, empId) => {
+                const val = (schedule[date] || {})[empId];
+                return typeof val === 'object' && val !== null ? val.id : val;
+            };
+
+            // Resolves a shift ID to its shift-code definition. Each shift code carries a
+            // Region Code per country (an informational reference label) rather than separate
+            // times per region, so the lookup is a simple ID match; the employee's region is
+            // only used to pick which Region Code label to display for that code.
+            const getShiftForEmployee = (shiftId, employee) => {
+                if (shiftId === undefined || shiftId === null) return null;
+                if (shiftId === 'L') return { id: 'L', name: 'Leave', shortName: 'L', color: leaveConfig.color, regionCode: employee ? (leaveConfig.regionCodes || {})[employee.country] : undefined };
+                const base = shiftTypes.find(s => s.id === shiftId);
+                if (!base) return null;
+                const regionCode = employee ? (base.regionCodes || {})[employee.country] : undefined;
+                return { ...base, regionCode };
+            };
+
+            const isShiftManual = (date, empId) => {
+                const val = (schedule[date] || {})[empId];
+                return typeof val === 'object' && val !== null ? val.isManual : (val !== undefined);
+            };
+
+            const isShiftRequested = (date, empId) => {
+                const val = (schedule[date] || {})[empId];
+                return typeof val === 'object' && val !== null ? !!val.isRequest : false;
+            };
+
+            // Same "one work shift per Short Code" dedupe used by Auto Fill, so manual edits and
+            // Shift Requests can be checked against the same A/B/C core shift codes it uses.
+            const getCoreShiftIds = () => {
+                const work = shiftTypes.filter(s => s.name !== 'Day Off' && s.shortName !== 'OFF');
+                const seen = new Set();
+                const deduped = [];
+                work.forEach(s => { if (!seen.has(s.shortName)) { seen.add(s.shortName); deduped.push(s); } });
+                return deduped.slice(0, 3).map(s => s.id);
+            };
+
+            const isWeekendOrHolidayForDate = (date, employee) => {
+                const dow = new Date(date + 'T00:00:00').getDay();
+                if (dow === 0 || dow === 6) return true;
+                return checkIsHoliday(date, employee, holidays, countries);
+            };
+
+            // Returns a violation message if putting `shiftId` on `date` for `employeeId` would give
+            // a Saturday/Sunday/Public Holiday a second person on the same Shift A, B, or C. This is
+            // a hard rule — exactly one person per core shift on those days, no exceptions — so
+            // manual edits and Shift Requests are rejected outright rather than just warned, the same
+            // as the streak-cap and OFF-quota rules. Returns null if it's fine.
+            const checkCoreShiftCapViolation = (date, employeeId, shiftId) => {
+                const empIdNum = parseInt(employeeId);
+                const employee = employees.find(e => e.id === empIdNum);
+                if (!employee) return null;
+                if (!isWeekendOrHolidayForDate(date, employee)) return null;
+                if (!getCoreShiftIds().includes(shiftId)) return null;
+
+                const dayEntry = schedule[date] || {};
+                const others = Object.keys(dayEntry).filter(empIdStr => {
+                    if (parseInt(empIdStr) === empIdNum) return false;
+                    const val = dayEntry[empIdStr];
+                    const valId = typeof val === 'object' && val !== null ? val.id : val;
+                    return valId === shiftId;
+                }).map(empIdStr => {
+                    const e = employees.find(x => x.id === parseInt(empIdStr));
+                    return e ? e.name : 'Someone';
+                });
+
+                if (others.length === 0) return null;
+                const shiftDef = shiftTypes.find(s => s.id === shiftId);
+                const shiftLabel = shiftDef ? `Shift ${shiftDef.shortName}` : 'this shift';
+                return `${others.join(', ')} ${others.length > 1 ? 'are' : 'is'} already on ${shiftLabel} on ${date} — only one person is allowed on ${shiftLabel} on Saturdays, Sundays, and Public Holidays.`;
+            };
+
+            // Returns a violation message if putting `shiftId` on ALL of `dates` for `employeeId`
+            // would create more than 6 straight days of the same Shift B or Shift C for that
+            // employee — counting both what's already on the schedule (auto-filled, manual, or a
+            // prior request) and the new dates being applied together. Returns null if it's fine.
+            // This is a hard rule: Shift Requests and manual edits must obey it just like Auto Fill.
+            const checkStreakCapViolation = (employeeId, dates, shiftId) => {
+                const [aId, bId, cId] = getCoreShiftIds();
+                if (shiftId !== bId && shiftId !== cId) return null;
+                const empIdNum = parseInt(employeeId);
+                const requestedSet = new Set(dates);
+
+                const addDays = (dateStr, n) => {
+                    const dt = new Date(dateStr + 'T00:00:00');
+                    dt.setDate(dt.getDate() + n);
+                    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+                };
+                const getShiftOnDate = (dateStr) => {
+                    if (requestedSet.has(dateStr)) return shiftId;
+                    const val = (schedule[dateStr] || {})[empIdNum];
+                    return typeof val === 'object' && val !== null ? val.id : val;
+                };
+
+                let worstStreak = 0, worstDate = null;
+                dates.forEach(d => {
+                    let streak = 1, cur = d;
+                    while (getShiftOnDate(addDays(cur, -1)) === shiftId) { streak++; cur = addDays(cur, -1); }
+                    cur = d;
+                    while (getShiftOnDate(addDays(cur, 1)) === shiftId) { streak++; cur = addDays(cur, 1); }
+                    if (streak > worstStreak) { worstStreak = streak; worstDate = d; }
+                });
+
+                if (worstStreak > 6) {
+                    const shiftDef = shiftTypes.find(s => s.id === shiftId);
+                    const shiftLabel = shiftDef ? `Shift ${shiftDef.shortName}` : 'this shift';
+                    return `This would create ${worstStreak} straight days of ${shiftLabel} (around ${worstDate}) — the maximum allowed is 6 in a row.`;
+                }
+                return null;
+            };
+
+            // Returns a violation message if putting the Day Off shift on ALL of `dates` for
+            // `employeeId` would give them more OFF days in any one calendar month than that
+            // month's OFF target (Saturdays + Sundays + public holidays for their region, or a
+            // stricter configured OFF Day Rule — see getEffectiveOffTarget). Counts both what's
+            // already on the schedule and the new dates together, per month, since a recurring
+            // request can span more than one month. Returns null if it's fine, or if `shiftId`
+            // isn't the Day Off shift at all (this rule only applies to OFF).
+            const checkOffQuotaViolation = (employeeId, dates, shiftId) => {
+                const offShiftType = shiftTypes.find(s => s.shortName === 'OFF' || s.name === 'Day Off');
+                if (!offShiftType || shiftId !== offShiftType.id) return null;
+                const empIdNum = parseInt(employeeId);
+                const employee = employees.find(e => e.id === empIdNum);
+                if (!employee) return null;
+
+                const requestedSet = new Set(dates);
+                const monthsTouched = new Map();
+                dates.forEach(d => {
+                    const dt = new Date(d + 'T00:00:00');
+                    const key = `${dt.getFullYear()}-${dt.getMonth()}`;
+                    if (!monthsTouched.has(key)) monthsTouched.set(key, { month: dt.getMonth(), year: dt.getFullYear() });
+                });
+
+                for (const { month, year } of monthsTouched.values()) {
+                    const target = getEffectiveOffTarget(employee, month, year);
+                    const daysInM = getDaysInMonth(month, year);
+
+                    let count = 0;
+                    for (let d = 1; d <= daysInM; d++) {
+                        const dateStr = formatDate(d, month, year);
+                        if (requestedSet.has(dateStr)) { count++; continue; }
+                        if (getShiftIdForDate(dateStr, empIdNum) === offShiftType.id) count++;
+                    }
+
+                    if (count > target) {
+                        return `This would give ${employee.name} ${count} OFF days in ${monthNames[month]} ${year} — the maximum allowed is ${target} (Saturdays + Sundays + public holidays for their region).`;
+                    }
+                }
+                return null;
+            };
+
+            // Manual edits directly on the Schedule grid are a deliberate human override, so they
+            // are exempt from every rule Auto Fill and Shift Requests must otherwise obey (the 6-day
+            // Shift B/C streak cap, the monthly OFF quota, and the one-person-per-core-shift cap on
+            // Saturdays/Sundays/holidays) — no validation, no warning. However, a cell that is
+            // currently locked by a Shift Request is NOT eligible for this direct-grid override —
+            // the grid's onClick handler blocks the click before assignShift is ever called for
+            // such a cell. To change a Shift-Request-locked cell, the request itself must be
+            // removed/edited from the Shift Requests page. Shift Requests themselves still go
+            // through the full validation in applyShiftRequestDates.
+            const assignShift = (date, employeeId, shiftTypeId) => {
+                setSchedule(prev => {
+                    const current = (prev[date] || {})[employeeId];
+                    const currentIsRequested = typeof current === 'object' && current !== null && !!current.isRequest;
+                    if (currentIsRequested) return prev; // locked by a Shift Request — no direct-grid override
+                    return {
+                        ...prev,
+                        [date]: { ...prev[date], [employeeId]: { id: shiftTypeId, isManual: true } }
+                    };
+                });
+            };
+
+            // --- SHIFT REQUESTS (staff-requested shifts: locked onto the roster, survive Auto Fill AND Clear All) ---
+            const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+            // Applies one shift/date combo (or many, for a recurring group) to shiftRequests + the schedule.
+            const applyShiftRequestDates = (empId, dates, shiftId, note, groupId, groupLabel) => {
+                const empIdNum = parseInt(empId);
+                const shiftIdVal = shiftId === 'L' ? 'L' : parseInt(shiftId);
+
+                // Hard rule: this whole submission is rejected if it would push any straight run of
+                // Shift B or Shift C past 5 days — Shift Requests must obey the same cap Auto Fill does.
+                const streakViolation = checkStreakCapViolation(empIdNum, dates, shiftIdVal);
+                if (streakViolation) {
+                    showToast(`Request not submitted: ${streakViolation}`, 'error');
+                    return;
+                }
+
+                // Hard rule: requesting the Day Off shift must obey the same monthly OFF quota
+                // Auto Fill does — it can't push this employee's total OFF days for that month
+                // above the Saturdays + Sundays + public holidays target.
+                const offViolation = checkOffQuotaViolation(empIdNum, dates, shiftIdVal);
+                if (offViolation) {
+                    showToast(`Request not submitted: ${offViolation}`, 'error');
+                    return;
+                }
+
+                // Hard rule: this whole submission is rejected if any date would give a Saturday,
+                // Sunday, or Public Holiday a second person on the same Shift A, B, or C — exactly
+                // one person per core shift on those days, no exceptions.
+                const coreShiftViolation = dates.map(date => checkCoreShiftCapViolation(date, empIdNum, shiftIdVal)).find(Boolean);
+                if (coreShiftViolation) {
+                    showToast(`Request not submitted: ${coreShiftViolation}`, 'error');
+                    return;
+                }
+
+                const newRequestRecords = dates.map((date, i) => ({
+                    id: Date.now() + i,
+                    empId: empIdNum,
+                    date,
+                    shiftId: shiftIdVal,
+                    note: note || '',
+                    groupId: groupId || null,
+                    groupLabel: groupLabel || null,
+                    createdAt: new Date().toISOString()
+                }));
+                setShiftRequests(prev => [...prev, ...newRequestRecords]);
+                setSchedule(prev => {
+                    const next = { ...prev };
+                    newRequestRecords.forEach(req => {
+                        next[req.date] = { ...next[req.date], [req.empId]: { id: req.shiftId, isManual: true, isRequest: true, requestId: req.id } };
+                    });
+                    return next;
+                });
+
+                const submittedMsg = groupId
+                    ? `${dates.length} shift requests submitted (${groupLabel}) and added to the roster.`
+                    : 'Shift request submitted and added to the roster.';
+
+                showToast(submittedMsg);
+            };
+
+            // mode: 'date' -> a single specific date. 'weekday' -> every occurrence of a chosen
+            // weekday (e.g. every Friday) within a chosen month/year. 'weekOfMonth' -> every
+            // workday (or every day) within a chosen week-of-the-month (e.g. week 1 = days 1-7).
+            const submitShiftRequest = ({ empId, mode, date, weekday, weekOfMonth, dayScope, reqMonth, reqYear, shiftId, note }) => {
+                if (!empId || !shiftId) { showToast('Please choose an employee and a shift.', 'error'); return; }
+
+                if (mode === 'weekday') {
+                    const m = parseInt(reqMonth), y = parseInt(reqYear), wd = parseInt(weekday);
+                    const daysInM = getDaysInMonth(m, y);
+                    const dates = [];
+                    for (let d = 1; d <= daysInM; d++) {
+                        if (getDayOfWeek(d, m, y) === wd) dates.push(formatDate(d, m, y));
+                    }
+                    if (dates.length === 0) { showToast('No matching dates found for that month.', 'error'); return; }
+                    const groupId = Date.now();
+                    const groupLabel = `Every ${weekdayNames[wd]}, ${monthNames[m]} ${y}`;
+                    applyShiftRequestDates(empId, dates, shiftId, note, groupId, groupLabel);
+                } else if (mode === 'weekOfMonth') {
+                    const m = parseInt(reqMonth), y = parseInt(reqYear), wk = parseInt(weekOfMonth);
+                    const weeks = getWeeksOfMonth(m, y);
+                    const range = weeks[wk - 1];
+                    if (!range) { showToast('That week does not exist in the chosen month.', 'error'); return; }
+                    const dates = [];
+                    for (let d = range.start; d <= range.end; d++) {
+                        const wd = getDayOfWeek(d, m, y);
+                        const isWorkday = wd >= 1 && wd <= 5;
+                        if (dayScope === 'all' || isWorkday) dates.push(formatDate(d, m, y));
+                    }
+                    if (dates.length === 0) { showToast('No matching dates found for that week.', 'error'); return; }
+                    const groupId = Date.now();
+                    const weekLabel = ['1st', '2nd', '3rd', '4th', '5th', '6th'][wk - 1] || `${wk}th`;
+                    const scopeLabel = dayScope === 'all' ? 'All days' : 'Workdays';
+                    const groupLabel = `${scopeLabel}, ${weekLabel} week of ${monthNames[m]} ${y} (${shortDateLabel(range.start, m, y)}\u2013${shortDateLabel(range.end, m, y)})`;
+                    applyShiftRequestDates(empId, dates, shiftId, note, groupId, groupLabel);
+                } else {
+                    if (!date) { showToast('Please choose a date.', 'error'); return; }
+                    applyShiftRequestDates(empId, [date], shiftId, note, null, null);
+                }
+            };
+
+            const clearRequestSlot = (prevSchedule, request) => {
+                const dayEntry = prevSchedule[request.date];
+                if (!dayEntry) return prevSchedule;
+                const cell = dayEntry[request.empId];
+                const cellId = typeof cell === 'object' && cell !== null ? cell.id : cell;
+                const cellRequestId = typeof cell === 'object' && cell !== null ? cell.requestId : null;
+                // Only clear the slot if it's still exactly this request's assignment (don't clobber later manual edits)
+                if (cellRequestId === request.id || (cellRequestId === undefined && cellId === request.shiftId)) {
+                    const nextDay = { ...dayEntry };
+                    delete nextDay[request.empId];
+                    return { ...prevSchedule, [request.date]: nextDay };
+                }
+                return prevSchedule;
+            };
+
+            const removeShiftRequest = (requestId) => {
+                const request = shiftRequests.find(r => r.id === requestId);
+                if (!request) return;
+                if (!window.confirm('Remove this shift request? Its slot on the roster will be cleared so it can be re-assigned.')) return;
+                setShiftRequests(prev => prev.filter(r => r.id !== requestId));
+                setSchedule(prev => clearRequestSlot(prev, request));
+                showToast('Shift request removed.');
+            };
+
+            const removeShiftRequestGroup = (groupId) => {
+                const group = shiftRequests.filter(r => r.groupId === groupId);
+                if (group.length === 0) return;
+                if (!window.confirm(`Remove all ${group.length} requests in "${group[0].groupLabel}"? Their roster slots will be cleared so they can be re-assigned.`)) return;
+                setShiftRequests(prev => prev.filter(r => r.groupId !== groupId));
+                setSchedule(prev => group.reduce((acc, request) => clearRequestSlot(acc, request), prev));
+                showToast('Recurring shift request group removed.');
+            };
+
+            const getDayOfWeek = (day, month, year) => new Date(year, month, day).getDay();
+            const isWeekend = (day, month, year) => {
+                const dayOfWeek = getDayOfWeek(day, month, year);
+                return dayOfWeek === 0 || dayOfWeek === 6;
+            };
+
+            // Splits a month into real calendar weeks that always end on Sunday, following that
+            // month's actual layout. The first and last weeks are often partial (e.g. if the
+            // month starts on a Wednesday, week 1 only runs Wed-Sun).
+            const getWeeksOfMonth = (month, year) => {
+                const daysInMonth = getDaysInMonth(month, year);
+                const weeks = [];
+                let start = 1;
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const dow = getDayOfWeek(d, month, year);
+                    if (dow === 0 || d === daysInMonth) {
+                        weeks.push({ start, end: d });
+                        start = d + 1;
+                    }
+                }
+                return weeks;
+            };
+
+            const shortDateLabel = (d, month, year) => `${monthNames[month].slice(0, 3)} ${d}`;
+
+            const checkIsHoliday = (date, emp, holidaysList, countriesList) => {
+                return holidaysList.some(h => {
+                    if (h.date !== date) return false;
+                    const hVal = String(h.countryCode || h.country || '').toUpperCase();
+                    const eVal = String(emp.country || '').toUpperCase();
+                    if (hVal === eVal) return true;
+                    const c1 = countriesList.find(c => c.code.toUpperCase() === hVal || c.name.toUpperCase() === hVal);
+                    const c2 = countriesList.find(c => c.code.toUpperCase() === eVal || c.name.toUpperCase() === eVal);
+                    return c1 && c2 && c1.code === c2.code;
+                });
+            };
+
+            // The default OFF quota for a region, for a given month: every Saturday & Sunday in
+            // that month, plus every public holiday configured for that region in that month.
+            // This mirrors exactly how Auto Fill computes each employee's natural OFF target,
+            // so admins can see what "no rule set" actually means before overriding it.
+            const getNaturalOffDaysForRegion = (countryCode, month, year) => {
+                const daysInM = getDaysInMonth(month, year);
+                let count = 0;
+                for (let d = 1; d <= daysInM; d++) {
+                    const dateStr = formatDate(d, month, year);
+                    if (isWeekend(d, month, year)) count++;
+                    if (checkIsHoliday(dateStr, { country: countryCode }, holidays, countries)) count++;
+                }
+                return count;
+            };
+
+            // --- THE PRIORITY-ALLOCATION ENGINE ---
+            const generateAutoSchedule = () => {
+                const newSchedule = {};
+                Object.keys(schedule).forEach(date => {
+                    newSchedule[date] = {};
+                    Object.keys(schedule[date]).forEach(empIdStr => {
+                        const empId = parseInt(empIdStr);
+                        if (isShiftManual(date, empId)) {
+                            newSchedule[date][empId] = schedule[date][empId];
+                        }
+                    });
+                });
+
+                const daysInMonth = getDaysInMonth(currentMonth, currentYear);
+                const allWorkShifts = shiftTypes.filter(s => s.name !== 'Day Off' && s.shortName !== 'OFF');
+                const offShift = shiftTypes.find(s => s.name === 'Day Off' || s.shortName === 'OFF') || { id: 5 };
+
+                // Multiple shift codes can share the same Short Code with different Regions
+                // (e.g. two "A" entries, one per country). For planning purposes the engine only
+                // needs one canonical representative per code; the actual regional time is
+                // resolved for display via getShiftForEmployee.
+                const workShifts = [];
+                const seenShortNames = new Set();
+                allWorkShifts.forEach(s => {
+                    if (!seenShortNames.has(s.shortName)) {
+                        seenShortNames.add(s.shortName);
+                        workShifts.push(s);
+                    }
+                });
+
+                const coreShifts = workShifts.slice(0, 3);
+                const managerShift = shiftTypes.find(s => s.shortName === 'G' || s.name === 'Shift G') || workShifts[3] || coreShifts[0];
+
+                const shiftA_id = coreShifts[0] ? coreShifts[0].id : 1;
+                const shiftB_id = coreShifts[1] ? coreShifts[1].id : 2;
+                const shiftC_id = coreShifts[2] ? coreShifts[2].id : 3;
+                const shiftG_id = managerShift.id;
+
+                // --- CONTINUITY WITH PREVIOUS MONTH ---
+                // Look at how each employee's previous month ended, so day 1 of this month
+                // respects the same fatigue caps and "no jumping out of night shift" rules
+                // instead of starting from a blank slate.
+                const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+                const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+                const prevDaysInMonth = getDaysInMonth(prevMonth, prevYear);
+                const prevMonthRecord = savedRecords[`${prevYear}-${prevMonth}`];
+
+                const getPrevShiftForDate = (dateStr, empId) => {
+                    // Prefer live schedule data (the schedule state holds history across all months)
+                    const liveDay = schedule[dateStr];
+                    if (liveDay && liveDay[empId] !== undefined) {
+                        const v = liveDay[empId];
+                        return typeof v === 'object' && v !== null ? v.id : v;
+                    }
+                    // Fall back to a saved record for that month, if the live data isn't there
+                    if (prevMonthRecord && prevMonthRecord.schedule[dateStr] && prevMonthRecord.schedule[dateStr][empId] !== undefined) {
+                        const v = prevMonthRecord.schedule[dateStr][empId];
+                        return typeof v === 'object' && v !== null ? v.id : v;
+                    }
+                    return undefined;
+                };
+
+                const scanWorkStreakBack = (empId) => {
+                    let count = 0;
+                    for (let dd = prevDaysInMonth; dd >= 1 && count < 10; dd--) {
+                        const raw = getPrevShiftForDate(formatDate(dd, prevMonth, prevYear), empId);
+                        if (raw === undefined || raw === 'L' || raw === offShift.id) break;
+                        count++;
+                    }
+                    return count;
+                };
+
+                const scanShiftStreakBack = (empId, targetShiftId) => {
+                    if (targetShiftId === undefined || targetShiftId === 'L' || targetShiftId === offShift.id) return 0;
+                    let count = 0;
+                    for (let dd = prevDaysInMonth; dd >= 1 && count < 10; dd--) {
+                        const raw = getPrevShiftForDate(formatDate(dd, prevMonth, prevYear), empId);
+                        if (raw !== targetShiftId) break;
+                        count++;
+                    }
+                    return count;
+                };
+
+                const scanOffStreakBack = (empId) => {
+                    let count = 0;
+                    for (let dd = prevDaysInMonth; dd >= 1 && count < 10; dd--) {
+                        const raw = getPrevShiftForDate(formatDate(dd, prevMonth, prevYear), empId);
+                        if (raw !== offShift.id) break;
+                        count++;
+                    }
+                    return count;
+                };
+
+                const empStates = {};
+                
+                employees.forEach((emp, index) => {
+                    // Effective monthly OFF target: always ceilinged at the natural Saturday/Sunday
+                    // + public holiday count for this month; a region's configured OFF Day Rule can
+                    // only lower that further, never raise it. See getEffectiveOffTarget.
+                    let targetOffDays = getEffectiveOffTarget(emp, currentMonth, currentYear);
+
+                    // Check how this employee's previous month ended
+                    const prevLastDate = formatDate(prevDaysInMonth, prevMonth, prevYear);
+                    const rawPrevLast = getPrevShiftForDate(prevLastDate, emp.id);
+
+                    let contCurrentShiftId = null, contShiftStreak = 0, contWorkStreak = (index % 4), contOffStreak = 0;
+                    if (rawPrevLast !== undefined) {
+                        contCurrentShiftId = rawPrevLast;
+                        if (rawPrevLast === offShift.id) {
+                            contOffStreak = scanOffStreakBack(emp.id);
+                            contWorkStreak = 0;
+                            contShiftStreak = 0;
+                        } else if (rawPrevLast === 'L') {
+                            contWorkStreak = 0;
+                            contShiftStreak = 0;
+                            contOffStreak = 0;
+                        } else {
+                            contWorkStreak = scanWorkStreakBack(emp.id);
+                            contShiftStreak = scanShiftStreakBack(emp.id, rawPrevLast);
+                            contOffStreak = 0;
+                        }
+                    }
+
+                    // PERFECT MATHEMATICAL STAGGER: Guarantees 0,1,2,3 spread so people never burn out together
+                    // (used only as a fallback when there's no previous-month data to check)
+                    empStates[emp.id] = { 
+                        workStreak: contWorkStreak, 
+                        shiftStreak: contShiftStreak, 
+                        offStreak: contOffStreak,
+                        currentShiftId: contCurrentShiftId,
+                        targetOffDays: targetOffDays,
+                        currentOffCount: 0,
+                        shiftBCount: 0,
+                        shiftCCount: 0
+                    };
+                });
+
+                // Every Saturday, Sunday, and public holiday FORCES an OFF for anyone not on a core
+                // shift that day (Shift G isn't allowed then) — that's what makes up the natural OFF
+                // target in the first place. Precompute each employee's forced-OFF day numbers for
+                // the month so the discretionary weekday OFF/G choice below can check, before handing
+                // out an "extra" OFF today, whether the remaining budget still covers every forced day
+                // still ahead. Without this reservation, an early discretionary OFF can leave the
+                // budget short by the time a later mandatory weekend/holiday arrives, pushing the
+                // month's total OFF count past the target.
+                const forcedOffDayNumbers = {};
+                employees.forEach(emp => {
+                    const days = [];
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        const dStr = formatDate(d, currentMonth, currentYear);
+                        if (isWeekend(d, currentMonth, currentYear) || checkIsHoliday(dStr, emp, holidays, countries)) {
+                            days.push(d);
+                        }
+                    }
+                    forcedOffDayNumbers[emp.id] = days;
+                });
+                const countFutureForcedOffDays = (empId, afterDay) =>
+                    forcedOffDayNumbers[empId].filter(d => d > afterDay).length;
+
+                const calculateScore = (p, reqShiftId, day) => {
+                    let state = p.state;
+                    let score = 0;
+                    
+                    let remainingDays = daysInMonth - day + 1;
+                    let remainingOffs = state.targetOffDays - state.currentOffCount;
+                    
+                    let mustOffQuota = remainingOffs >= remainingDays;
+                    let mustWorkQuota = remainingOffs <= 0;
+                    let mustOffFatigue = state.workStreak >= 5;
+
+                    // ==========================================
+                    // 1. ABSOLUTE HARD BLOCKS (Safety & Fatigue)
+                    // ==========================================
+                    if (mustOffFatigue) score += 5000000; // Max 5 days
+
+                    // Rule: Max 6 straight days on Shift B, and max 6 straight days on Shift C.
+                    // Once either streak hits 6, that same shift can't continue the next day.
+                    // This is a soft (score) penalty; the true hard block with its edge-case
+                    // fallback lives in the core-shift assignment loop below (atStreakCap).
+                    if ((state.currentShiftId === shiftB_id || state.currentShiftId === shiftC_id)
+                        && reqShiftId === state.currentShiftId
+                        && state.shiftStreak >= 6) {
+                        score += 5000000;
+                    }
+                    
+                    // --- "INTO NIGHT" BLOCKS (Requires OFF before C) ---
+                    // Rule: B -> C is not allowed without OFF
+                    if (state.currentShiftId === shiftB_id && reqShiftId === shiftC_id) score += 5000000;
+                    // Rule: G -> C is not allowed without OFF
+                    if (state.currentShiftId === shiftG_id && reqShiftId === shiftC_id) score += 5000000;
+                    // Rule: A -> C is not allowed without OFF
+                    if (state.currentShiftId === shiftA_id && reqShiftId === shiftC_id) score += 5000000;
+
+                    // --- "OUT OF NIGHT" BLOCKS (Requires OFF after C) ---
+                    // Rule: C -> B is not allowed without OFF
+                    if (state.currentShiftId === shiftC_id && reqShiftId === shiftB_id) score += 5000000;
+                    // Rule: C -> A is not allowed without OFF
+                    if (state.currentShiftId === shiftC_id && reqShiftId === shiftA_id) score += 5000000;
+                    // General rule: C cannot go to A or G either. C MUST go to C or OFF.
+                    if (state.currentShiftId === shiftC_id && reqShiftId !== shiftC_id) score += 5000000;
+
+                    // --- OTHER TRANSITION BLOCKS ---
+                    // Rule: B -> A is not allowed without OFF
+                    if (state.currentShiftId === shiftB_id && reqShiftId === shiftA_id) score += 5000000;
+
+                    // ==========================================
+
+                    // 2. EXACT QUOTA ENFORCERS
+                    if (mustOffQuota) score += 500000; 
+                    if (mustWorkQuota) score -= 500000; 
+
+                    // 3. THE "2-DAY OFF" RULE
+                    if (state.currentShiftId === offShift.id && state.offStreak === 1) {
+                        score += 50000; 
+                    }
+
+                    // 4. FATIGUE CURVE
+                    score += Math.pow(state.workStreak, 3) * 50; 
+
+                    // 5. SHIFT CONTINUATION (Prefer stability)
+                    if (state.currentShiftId && state.currentShiftId !== offShift.id) {
+                        if (state.currentShiftId === reqShiftId) {
+                            score -= 2000; 
+                            if (state.shiftStreak >= 3) score += 4000; 
+                        } else {
+                            score += 1500; 
+                        }
+                    }
+
+                    // 6. BALANCE BURDEN
+                    let ratio = remainingOffs / remainingDays; 
+                    score += ratio * 5000;
+
+                    // 7. EVEN-OUT SHIFT B & C ACROSS THE MONTH
+                    // Whoever already has MORE of the requested B/C shift this month scores higher
+                    // (=> less likely to be picked, since the lowest score wins), pulling everyone
+                    // toward a near-equal count of B's and a near-equal count of C's by month end.
+                    if (reqShiftId === shiftB_id) score += state.shiftBCount * 900;
+                    if (reqShiftId === shiftC_id) score += state.shiftCCount * 900;
+
+                    // ADD RANDOM TIE-BREAKER (Generates completely new puzzles every click)
+                    return score + Math.random();
+                };
+
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = formatDate(day, currentMonth, currentYear);
+                    if (!newSchedule[date]) newSchedule[date] = {};
+                    
+                    const isWeekEndDay = isWeekend(day, currentMonth, currentYear);
+                    const manualAssignments = newSchedule[date]; 
+                    
+                    const assignedThisDayIds = Object.values(manualAssignments).map(v => typeof v === 'object' && v !== null ? v.id : v);
+                    let missingCoreShifts = coreShifts.filter(s => !assignedThisDayIds.includes(s.id));
+                    let availableEmps = employees.filter(e => !manualAssignments[e.id]);
+
+                    let staffPool = [];
+
+                    availableEmps.forEach(emp => {
+                        let state = empStates[emp.id];
+                        let isLeaveToday = leaves.some(l => l.date === date && l.empId === emp.id);
+                        let isManager = (emp.role || '').trim().toLowerCase() === 'manager';
+                        
+                        let isHol = checkIsHoliday(date, emp, holidays, countries);
+                        // Rule: Shift G is not allowed on Saturday, Sunday, or a Public Holiday.
+                        let blockG = isWeekEndDay || isHol;
+
+                        let remainingDays = daysInMonth - day + 1;
+                        let remainingOffs = state.targetOffDays - state.currentOffCount;
+                        
+                        let mustOffQuota = remainingOffs >= remainingDays;
+                        let mustOffFatigue = state.workStreak >= 5;
+                        // Rule: B -> G and C -> G are not allowed without an OFF in between
+                        let isIllegalToGManager = (state.currentShiftId === shiftB_id || state.currentShiftId === shiftC_id);
+                        // Once this employee's monthly OFF quota (region cap, or natural weekend/
+                        // holiday count) is used up, give them G instead of another OFF day —
+                        // but NEVER on a Saturday or Sunday, since Shift G is not allowed then
+                        // regardless of quota. It can still apply on a weekday public holiday.
+                        let offQuotaExhaustedManager = remainingOffs <= 0 && !isWeekEndDay;
+
+                        if (isLeaveToday) {
+                            // Assign 'L' instead of standard Day Off
+                            newSchedule[date][emp.id] = { id: 'L', isManual: false };
+                        } else if (isManager) {
+                            if (mustOffFatigue || isIllegalToGManager) {
+                                newSchedule[date][emp.id] = { id: offShift.id, isManual: false };
+                            } else if (offQuotaExhaustedManager) {
+                                newSchedule[date][emp.id] = { id: shiftG_id, isManual: false };
+                            } else if (blockG || mustOffQuota) {
+                                newSchedule[date][emp.id] = { id: offShift.id, isManual: false };
+                            } else {
+                                newSchedule[date][emp.id] = { id: shiftG_id, isManual: false };
+                            }
+                        } else {
+                            staffPool.push({ emp, state, blockG });
+                        }
+                    });
+
+                    // 1. ASSIGN CORE SHIFTS (NIGHT SHIFT ALWAYS GETS FIRST PICK TO PREVENT STARVATION)
+                    // Rule: On Saturdays, Sundays, and Public Holidays, only ONE person is scheduled
+                    // for Shift A, ONE for Shift B, and ONE for Shift C. missingCoreShifts always
+                    // holds at most one entry per shift code, and each entry is filled by exactly one
+                    // staff member below, so this cap is guaranteed on every day of the month,
+                    // including weekends/holidays.
+                    missingCoreShifts.sort((a, b) => {
+                        const priority = { [shiftC_id]: 1, [shiftA_id]: 2, [shiftB_id]: 3 };
+                        return (priority[a.id] || 99) - (priority[b.id] || 99);
+                    }).forEach(reqShift => {
+                        // Rule: max 6 straight days on Shift B or Shift C. This is a hard exclusion
+                        // (not just a score penalty) — someone at the cap must NEVER be picked again
+                        // for that same shift, even if every other candidate also scores badly.
+                        const atStreakCap = (candidate) =>
+                            (reqShift.id === shiftB_id || reqShift.id === shiftC_id) &&
+                            candidate.state.currentShiftId === reqShift.id &&
+                            candidate.state.shiftStreak >= 6;
+
+                        let eligible = staffPool.filter(p => !atStreakCap(p));
+                        // Edge case only: if literally everyone available is already at the 6-day
+                        // cap (e.g. a very small team), fall back to the full pool so the shift
+                        // still gets covered rather than left empty. This fallback is the ONLY
+                        // sanctioned way a streak may run past 6 — it never applies otherwise.
+                        let pool = eligible.length > 0 ? eligible : staffPool;
+
+                        pool.sort((a, b) => calculateScore(a, reqShift.id, day) - calculateScore(b, reqShift.id, day));
+                        let chosen = pool.shift();
+                        if (chosen) {
+                            staffPool = staffPool.filter(p => p !== chosen);
+                            newSchedule[date][chosen.emp.id] = { id: reqShift.id, isManual: false };
+                        }
+                    });
+
+                    // 2. ASSIGN REMAINDER TO G OR OFF SAFELY
+                    staffPool.forEach(p => {
+                        let remainingDays = daysInMonth - day + 1;
+                        let remainingOffs = p.state.targetOffDays - p.state.currentOffCount;
+                        
+                        // Rule: C -> G and B -> G are not allowed without an OFF in between
+                        let isIllegalToG = (p.state.currentShiftId === shiftC_id || p.state.currentShiftId === shiftB_id);
+                        let mustOffFatigue = p.state.workStreak >= 5;
+                        // Once this employee's monthly OFF quota (region cap, or natural weekend/
+                        // holiday count) is used up, give them G instead of another OFF day —
+                        // but NEVER on a Saturday or Sunday, since Shift G is not allowed then
+                        // regardless of quota. It can still apply on a weekday public holiday.
+                        let offQuotaExhausted = remainingOffs <= 0 && !isWeekEndDay;
+
+                        if (mustOffFatigue || isIllegalToG) {
+                            // Hard safety rules always win, regardless of OFF quota.
+                            newSchedule[date][p.emp.id] = { id: offShift.id, isManual: false };
+                        } else if (offQuotaExhausted) {
+                            newSchedule[date][p.emp.id] = { id: shiftG_id, isManual: false };
+                        } else if (p.blockG || remainingOffs >= remainingDays) {
+                            newSchedule[date][p.emp.id] = { id: offShift.id, isManual: false };
+                        } else {
+                            // Reserve enough of the remaining OFF budget to cover every Saturday,
+                            // Sunday, and holiday still ahead this month — those are forced OFF days
+                            // (see the p.blockG branch above) no matter what. Only spend an OFF today,
+                            // a purely discretionary weekday, if there's budget left over ABOVE that
+                            // reserve; otherwise take G instead so the reserve stays intact and the
+                            // month's total OFF count can't run past the natural target.
+                            let futureForcedOffDays = countFutureForcedOffDays(p.emp.id, day);
+                            let discretionarySlack = remainingOffs - futureForcedOffDays;
+
+                            if (discretionarySlack > 0 && p.state.currentShiftId === offShift.id && p.state.offStreak === 1) {
+                                newSchedule[date][p.emp.id] = { id: offShift.id, isManual: false };
+                            } else if (discretionarySlack <= 0) {
+                                newSchedule[date][p.emp.id] = { id: shiftG_id, isManual: false };
+                            } else {
+                                let ratio = remainingOffs / remainingDays;
+                                let randomThreshold = 0.35 + (Math.random() * 0.2);
+
+                                if (ratio > randomThreshold) {
+                                    newSchedule[date][p.emp.id] = { id: offShift.id, isManual: false };
+                                } else {
+                                    newSchedule[date][p.emp.id] = { id: shiftG_id, isManual: false };
+                                }
+                            }
+                        }
+                    });
+
+                    // 3. ADVANCE STATES AND COUNTERS PRECISELY
+                    employees.forEach(emp => {
+                        let val = newSchedule[date][emp.id];
+                        let assignedShiftId = typeof val === 'object' && val !== null ? val.id : val;
+                        let state = empStates[emp.id];
+                        
+                        if (assignedShiftId === 'L') {
+                            // Reset fatigue streaks, but DO NOT increment currentOffCount
+                            state.workStreak = 0;
+                            state.shiftStreak = 0;
+                            state.currentShiftId = 'L';
+                        } else if (assignedShiftId === offShift.id) {
+                            state.currentOffCount++; 
+                            state.workStreak = 0;
+                            state.shiftStreak = 0;
+                            state.offStreak++;
+                            state.currentShiftId = offShift.id; 
+                        } else if (assignedShiftId) {
+
+                            state.workStreak++;
+                            state.offStreak = 0;
+                            if (assignedShiftId === shiftB_id) state.shiftBCount++;
+                            if (assignedShiftId === shiftC_id) state.shiftCCount++;
+                            if (state.currentShiftId === assignedShiftId) {
+                                state.shiftStreak++; 
+                            } else {
+                                state.shiftStreak = 1; 
+                            }
+                            state.currentShiftId = assignedShiftId;
+                        }
+                    });
+                }
+                
+                setSchedule(newSchedule);
+            };
+
+            const clearSchedule = () => {
+                setSchedule(prev => {
+                    const next = {};
+                    Object.keys(prev).forEach(date => {
+                        Object.keys(prev[date] || {}).forEach(empIdStr => {
+                            const val = prev[date][empIdStr];
+                            if (typeof val === 'object' && val !== null && val.isRequest) {
+                                if (!next[date]) next[date] = {};
+                                next[date][empIdStr] = val;
+                            }
+                        });
+                    });
+                    return next;
+                });
+                showToast('Roster cleared. Staff shift requests were kept in place.');
+            };
+
+            // --- EXPLICIT SAVE FUNCTIONS (writes immediately to localStorage + confirms to user) ---
+            const persistNow = (overrides) => {
+                try {
+                    const existing = JSON.parse(localStorage.getItem('shiftManagerAppOfflineData') || '{}');
+                    const merged = {
+                        employees, shiftTypes, schedule, darkMode, countries, holidays, leaves, shiftRequests, leaveConfig, offRules,
+                        ...existing,
+                        ...overrides
+                    };
+                    localStorage.setItem('shiftManagerAppOfflineData', JSON.stringify(merged));
+                    return true;
+                } catch (e) { return false; }
+            };
+
+            // Builds a fresh Excel workbook of ALL current settings (Employees, Shift Codes,
+            // OFF Day Rules, Holidays, Leaves, Regions) and triggers a browser download.
+            // Called automatically every time any Settings "Save" button is used, so every
+            // saved settings change also has an up-to-date Excel backup on disk.
+            const exportSettingsToExcel = () => {
+                try {
+                    const wb = XLSX.utils.book_new();
+
+                    // Sheet: Employees
+                    const empHeader = ['ID', 'Code', 'Name', 'Group', 'Role', 'Country', 'Email', 'Phone'];
+                    const empRows = [empHeader, ...employees.map(e => [
+                        e.id, e.code || '', e.name || '', e.group || '', e.role || '', e.country || '', e.email || '', e.phone || ''
+                    ])];
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(empRows), 'Employees');
+
+                    // Sheet: Shift Codes (incl. per-country region codes, and the synthetic Leave type)
+                    const scHeader = ['Shift Name', 'Short Name', 'Start', 'End', 'Color', ...countries.map(c => `Region Code (${c.code})`)];
+                    const scRows = [scHeader];
+                    shiftTypes.forEach(s => {
+                        scRows.push([s.name, s.shortName, s.start || '', s.end || '', s.color || '', ...countries.map(c => (s.regionCodes && s.regionCodes[c.code]) || '')]);
+                    });
+                    scRows.push(['Leave', 'L', '', '', leaveConfig.color || '', ...countries.map(c => (leaveConfig.regionCodes && leaveConfig.regionCodes[c.code]) || '')]);
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(scRows), 'Shift Codes');
+
+                    // Sheet: OFF Day Rules
+                    const offHeader = ['Country Code', 'Country Name', 'Max OFF Days / Month'];
+                    const offRows = [offHeader, ...countries.map(c => [
+                        c.code, c.name,
+                        (offRules[c.code] !== undefined && offRules[c.code] !== '') ? offRules[c.code] : '(auto: natural weekends + holidays)'
+                    ])];
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(offRows), 'OFF Day Rules');
+
+                    // Sheet: Holidays
+                    const holHeader = ['Date', 'Holiday Name', 'Country Code'];
+                    const holRows = [holHeader, ...holidays.map(h => [h.date, h.name, h.countryCode || h.country || ''])];
+                    if (holRows.length === 1) holRows.push(['(no holidays configured)', '', '']);
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(holRows), 'Holidays');
+
+                    // Sheet: Leaves
+                    const lvHeader = ['Date', 'Employee', 'Reason'];
+                    const lvRows = [lvHeader, ...leaves.map(l => {
+                        const emp = employees.find(e => e.id === l.empId);
+                        return [l.date, emp ? emp.name : 'Unknown', l.reason || ''];
+                    })];
+                    if (lvRows.length === 1) lvRows.push(['(no leaves configured)', '', '']);
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(lvRows), 'Leaves');
+
+                    // Sheet: Regions
+                    const cHeader = ['Country Code', 'Country Name'];
+                    const cRows = [cHeader, ...countries.map(c => [c.code, c.name])];
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cRows), 'Regions');
+
+                    const timestamp = new Date().toISOString().slice(0, 10);
+                    XLSX.writeFile(wb, `Shift_Roster_Settings_${timestamp}.xlsx`);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            };
+
+            const saveEmployeeConfig = () => {
+                const ok = persistNow({ employees, countries });
+                const exported = ok && exportSettingsToExcel();
+                showToast(ok ? (exported ? 'Employee configuration saved and backed up to Excel.' : 'Employee configuration saved, but the Excel backup failed.') : 'Failed to save employee configuration.', ok ? 'success' : 'error');
+            };
+
+            const saveShiftCodes = () => {
+                const ok = persistNow({ shiftTypes, leaveConfig });
+                const exported = ok && exportSettingsToExcel();
+                showToast(ok ? (exported ? 'Shift codes saved and backed up to Excel.' : 'Shift codes saved, but the Excel backup failed.') : 'Failed to save shift codes.', ok ? 'success' : 'error');
+            };
+
+            const saveHolidayConfig = () => {
+                const ok = persistNow({ holidays, leaves });
+                const exported = ok && exportSettingsToExcel();
+                showToast(ok ? (exported ? 'Holidays & leaves saved and backed up to Excel.' : 'Holidays & leaves saved, but the Excel backup failed.') : 'Failed to save holidays & leaves.', ok ? 'success' : 'error');
+            };
+
+            const saveOffRules = () => {
+                const ok = persistNow({ offRules });
+                const exported = ok && exportSettingsToExcel();
+                showToast(ok ? (exported ? 'OFF day rules saved and backed up to Excel.' : 'OFF day rules saved, but the Excel backup failed.') : 'Failed to save OFF day rules.', ok ? 'success' : 'error');
+            };
+
+            // --- EXCEL EXPORT HELPERS ---
+            const getDateRangeArray = (fromStr, toStr) => {
+                const dates = [];
+                let cur = new Date(fromStr + 'T00:00:00');
+                const end = new Date(toStr + 'T00:00:00');
+                while (cur <= end) {
+                    const y = cur.getFullYear(), m = String(cur.getMonth() + 1).padStart(2, '0'), d = String(cur.getDate()).padStart(2, '0');
+                    dates.push(`${y}-${m}-${d}`);
+                    cur.setDate(cur.getDate() + 1);
+                }
+                return dates;
+            };
+
+            const dayLabel = (dateStr) => {
+                const dt = new Date(dateStr + 'T00:00:00');
+                const wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dt.getDay()];
+                const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][dt.getMonth()];
+                return `${String(dt.getDate()).padStart(2, '0')}-${mo} (${wd})`;
+            };
+
+            const buildAndDownloadExcel = (dates, filename, reportLabel) => {
+                if (typeof XLSX === 'undefined') {
+                    showToast('Excel library failed to load. Check your internet connection.', 'error');
+                    return;
+                }
+                if (!dates.length) {
+                    showToast('No dates found for this report.', 'error');
+                    return;
+                }
+
+                // --- Sheet 1: Schedule ---
+                const scheduleHeader = ['Employee', 'Code', 'Group', 'Role', 'Country', ...dates.map(dayLabel), ...shiftTypes.map(s => `Total ${s.shortName}`), 'Total Leave'];
+                const scheduleRows = [scheduleHeader];
+
+                employees.forEach(emp => {
+                    const row = [emp.name, emp.code || '', emp.group || '', emp.role, emp.country];
+                    const counts = {}; shiftTypes.forEach(s => counts[s.id] = 0);
+                    let leaveCount = 0;
+                    dates.forEach(date => {
+                        const shiftId = getShiftIdForDate(date, emp.id);
+                        if (shiftId === 'L') { row.push('L'); leaveCount++; }
+                        else {
+                            const shift = getShiftForEmployee(shiftId, emp);
+                            row.push(shift ? shift.shortName : '-');
+                            if (shift) counts[shiftId]++;
+                        }
+                    });
+                    shiftTypes.forEach(s => row.push(counts[s.id]));
+                    row.push(leaveCount);
+                    scheduleRows.push(row);
+                });
+
+                const wsSchedule = XLSX.utils.aoa_to_sheet(scheduleRows);
+                wsSchedule['!cols'] = [{ wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, ...dates.map(() => ({ wch: 13 })), ...shiftTypes.map(() => ({ wch: 10 })), { wch: 10 }];
+
+                // --- Sheet 2: Summary ---
+                const summaryHeader = ['Employee', 'Code', 'Group', 'Role', 'Country', ...shiftTypes.map(s => s.name), 'Leave', 'Total Days', 'Off Target', 'Off Actual'];
+                const summaryRows = [summaryHeader];
+                employees.forEach(emp => {
+                    const counts = {}; shiftTypes.forEach(s => counts[s.id] = 0);
+                    let leaveCount = 0, offTarget = 0, offActual = 0, total = 0;
+                    dates.forEach(date => {
+                        const shiftId = getShiftIdForDate(date, emp.id);
+                        const dt = new Date(date + 'T00:00:00');
+                        const isWknd = dt.getDay() === 0 || dt.getDay() === 6;
+                        const isHol = checkIsHoliday(date, emp, holidays, countries);
+                        if (isWknd || isHol) offTarget++;
+                        if (shiftId === 'L') { leaveCount++; total++; }
+                        else if (shiftId) {
+                            total++;
+                            const shift = shiftTypes.find(s => s.id === shiftId);
+                            if (shift) {
+                                counts[shift.id]++;
+                                if (shift.shortName === 'OFF' || shift.name === 'Day Off') offActual++;
+                            }
+                        }
+                    });
+                    summaryRows.push([emp.name, emp.code || '', emp.group || '', emp.role, emp.country, ...shiftTypes.map(s => counts[s.id]), leaveCount, total, offTarget, offActual]);
+                });
+                const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+
+                // --- Sheet 3: Holidays & Leaves within range ---
+                const hlHeader = ['Type', 'Date', 'Name / Employee', 'Country / Reason'];
+                const hlRows = [hlHeader];
+                holidays.filter(h => dates.includes(h.date)).forEach(h => hlRows.push(['Holiday', h.date, h.name, h.countryCode || h.country || '']));
+                leaves.filter(l => dates.includes(l.date)).forEach(l => {
+                    const emp = employees.find(e => e.id === l.empId);
+                    hlRows.push(['Leave', l.date, emp ? emp.name : 'Unknown', l.reason || '']);
+                });
+                if (hlRows.length === 1) hlRows.push(['No holidays or leaves in this period.', '', '', '']);
+                const wsHL = XLSX.utils.aoa_to_sheet(hlRows);
+
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, wsSchedule, 'Schedule');
+                XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+                XLSX.utils.book_append_sheet(wb, wsHL, 'Holidays & Leaves');
+
+                XLSX.writeFile(wb, `${filename}.xlsx`);
+                showToast(`${reportLabel} exported successfully.`);
+            };
+
+            const exportMonthlyReport = () => {
+                const daysInMonth = getDaysInMonth(currentMonth, currentYear);
+                const dates = Array.from({ length: daysInMonth }, (_, i) => formatDate(i + 1, currentMonth, currentYear));
+                buildAndDownloadExcel(dates, `Monthly_Report_${monthNames[currentMonth]}_${currentYear}`, 'Monthly report');
+            };
+
+            const exportAdhocReport = () => {
+                if (!adhocFrom || !adhocTo) { showToast('Please select both cut-off dates.', 'error'); return; }
+                if (adhocFrom > adhocTo) { showToast('The start date must be before the end date.', 'error'); return; }
+                const dates = getDateRangeArray(adhocFrom, adhocTo);
+                buildAndDownloadExcel(dates, `Adhoc_Report_${adhocFrom}_to_${adhocTo}`, 'Ad-hoc report');
+            };
+
+            // --- ROSTER EXCEL TEMPLATE (download) & UPLOAD (apply) FOR THE CURRENT MONTH ---
+            // Downloads a fill-in-the-blanks .xlsx for the month currently open in the Schedule
+            // view, pre-filled with whatever is already scheduled, so it doubles as a starting
+            // point for edits done outside the app (e.g. by someone without access to it).
+            const downloadRosterTemplate = () => {
+                if (typeof XLSX === 'undefined') {
+                    showToast('Excel library failed to load. Check your internet connection.', 'error');
+                    return;
+                }
+                const daysInMonth = getDaysInMonth(currentMonth, currentYear);
+                const dates = Array.from({ length: daysInMonth }, (_, i) => formatDate(i + 1, currentMonth, currentYear));
+                const weekdayAbbr = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+                // Each date column header leads with the ISO date (YYYY-MM-DD) so the upload can
+                // match columns back to real dates regardless of locale or display formatting.
+                const header = ['Employee Name', 'Employee Code', 'Group', 'Country', ...dates.map(d => {
+                    const wd = weekdayAbbr[new Date(d + 'T00:00:00').getDay()];
+                    return `${d} (${wd})`;
+                })];
+
+                const rows = [header];
+                employees.forEach(emp => {
+                    const row = [emp.name, emp.code || '', emp.group || '', emp.country || ''];
+                    dates.forEach(date => {
+                        const shiftId = getShiftIdForDate(date, emp.id);
+                        const shiftDef = getShiftForEmployee(shiftId, emp);
+                        let cell = shiftDef ? shiftDef.shortName : '';
+                        // The [LOCKED] tag is informational only — a Shift Request's lock is
+                        // read from the app's own data on upload, not from this cell's text.
+                        if (isShiftRequested(date, emp.id)) cell = cell ? `${cell} [LOCKED]` : '[LOCKED]';
+                        row.push(cell);
+                    });
+                    rows.push(row);
+                });
+
+                const wsRoster = XLSX.utils.aoa_to_sheet(rows);
+                wsRoster['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, ...dates.map(() => ({ wch: 16 }))];
+
+                const instrRows = [
+                    ['Roster Upload Template — Instructions'],
+                    [''],
+                    [`Month: ${monthNames[currentMonth]} ${currentYear}`],
+                    [''],
+                    ['How to fill this in:'],
+                    ['1. Do not change the header row or the Employee Code column — they are used to match rows back to employees in the app.'],
+                    ['2. Fill in one shift code per day, in the column for that date, using the codes listed below.'],
+                    ['3. Leave a cell blank to keep that day unchanged from what is already scheduled in the app.'],
+                    ['4. Type a dash "-" in a cell to clear whatever shift is currently scheduled for that day.'],
+                    ['5. Cells marked [LOCKED] belong to an approved Shift Request and cannot be changed here — edits to them are ignored on upload.'],
+                    ['6. Codes are not case-sensitive.'],
+                    [''],
+                    ['Valid shift codes:'],
+                    ...shiftTypes.map(s => [s.shortName, s.name]),
+                    ['L', 'Leave'],
+                    ['-', 'Clear / remove the current assignment'],
+                    [''],
+                    ['Rules enforced automatically on upload:'],
+                    ['- Shift B and Shift C still cannot run more than 6 straight days in a row for the same employee; any cell that would break this is skipped and reported after upload (except the rare edge case where it is unavoidable).'],
+                    ['- Employee Code values that do not match any employee in the app are skipped and reported after upload.'],
+                    ['- Unrecognized shift codes are skipped and reported after upload.']
+                ];
+                const wsInstr = XLSX.utils.aoa_to_sheet(instrRows);
+                wsInstr['!cols'] = [{ wch: 60 }, { wch: 34 }];
+
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, wsRoster, 'Roster');
+                XLSX.utils.book_append_sheet(wb, wsInstr, 'Instructions');
+                XLSX.writeFile(wb, `Roster_Template_${monthNames[currentMonth]}_${currentYear}.xlsx`);
+                showToast('Roster template downloaded.');
+            };
+
+            // Parses an uploaded workbook (from downloadRosterTemplate, or an equivalent sheet)
+            // and applies it to the currently open month. Cells belonging to an approved Shift
+            // Request are always left alone, and the 6-day straight Shift B/C cap is enforced
+            // cell-by-cell rather than trusting the uploaded file.
+            const applyRosterUpload = (workbook) => {
+                const sheetName = workbook.SheetNames.includes('Roster') ? 'Roster' : workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false });
+                if (!rows.length) { showToast('The uploaded file has no data.', 'error'); return; }
+
+                const header = rows[0];
+                const codeColIdx = header.findIndex(h => String(h).trim().toLowerCase() === 'employee code');
+                if (codeColIdx === -1) { showToast('Could not find an "Employee Code" column in the uploaded file.', 'error'); return; }
+
+                const daysInMonth = getDaysInMonth(currentMonth, currentYear);
+                const monthDates = new Set(Array.from({ length: daysInMonth }, (_, i) => formatDate(i + 1, currentMonth, currentYear)));
+
+                const dateCols = [];
+                header.forEach((h, idx) => {
+                    const m = String(h).match(/^(\d{4}-\d{2}-\d{2})/);
+                    if (m && monthDates.has(m[1])) dateCols.push({ idx, date: m[1] });
+                });
+                if (!dateCols.length) {
+                    showToast(`No columns in this file match ${monthNames[currentMonth]} ${currentYear}. Make sure you're uploading the template for the month currently open in the Schedule view.`, 'error');
+                    return;
+                }
+                dateCols.sort((a, b) => a.date.localeCompare(b.date));
+
+                const [, shiftB_id, shiftC_id] = getCoreShiftIds();
+                const codeToShiftId = {};
+                shiftTypes.forEach(s => { codeToShiftId[s.shortName.toUpperCase()] = s.id; });
+
+                const newSchedule = JSON.parse(JSON.stringify(schedule));
+                const getMergedShiftId = (dateStr, empId) => {
+                    const val = (newSchedule[dateStr] || {})[empId];
+                    return typeof val === 'object' && val !== null ? val.id : val;
+                };
+
+                let updatedCount = 0;
+                const unmatchedCodes = new Set();
+                const invalidCells = [];
+                let lockedSkipped = 0;
+                const streakSkipped = [];
+
+                for (let r = 1; r < rows.length; r++) {
+                    const row = rows[r];
+                    const rawCode = row[codeColIdx];
+                    if (rawCode === '' || rawCode === undefined) continue;
+                    const emp = employees.find(e => (e.code || '').trim().toUpperCase() === String(rawCode).trim().toUpperCase());
+                    if (!emp) { unmatchedCodes.add(String(rawCode)); continue; }
+
+                    // Seed the running Shift B/C streak from the day before the first uploaded
+                    // date column, so the cap is enforced correctly even mid-month.
+                    let streakShiftId = null, streakLen = 0;
+                    {
+                        let d = addDaysToDateStr(dateCols[0].date, -1);
+                        const seedShiftId = getMergedShiftId(d, emp.id);
+                        if (seedShiftId === shiftB_id || seedShiftId === shiftC_id) {
+                            streakShiftId = seedShiftId;
+                            streakLen = 1;
+                            while (true) {
+                                d = addDaysToDateStr(d, -1);
+                                const v = getMergedShiftId(d, emp.id);
+                                if (v === streakShiftId) streakLen++; else break;
+                            }
+                        }
+                    }
+
+                    const finalizeStreak = (finalShiftId) => {
+                        if (finalShiftId === shiftB_id || finalShiftId === shiftC_id) {
+                            streakLen = (finalShiftId === streakShiftId) ? streakLen + 1 : 1;
+                            streakShiftId = finalShiftId;
+                        } else {
+                            streakShiftId = null; streakLen = 0;
+                        }
+                    };
+
+                    dateCols.forEach(({ idx, date }) => {
+                        const raw = row[idx];
+                        const cellText = String(raw === undefined ? '' : raw).trim();
+
+                        if (isShiftRequested(date, emp.id)) { lockedSkipped++; finalizeStreak(getMergedShiftId(date, emp.id)); return; }
+                        if (cellText === '') { finalizeStreak(getMergedShiftId(date, emp.id)); return; }
+
+                        let action = null; // { type: 'clear' } | { type: 'set', id }
+                        if (cellText === '-' || cellText.toUpperCase() === 'CLEAR') {
+                            action = { type: 'clear' };
+                        } else if (cellText.toUpperCase() === 'L') {
+                            action = { type: 'set', id: 'L' };
+                        } else {
+                            const stripped = cellText.replace(/\s*\[LOCKED\]\s*/i, '').trim();
+                            const matchId = codeToShiftId[stripped.toUpperCase()];
+                            if (matchId !== undefined) action = { type: 'set', id: matchId };
+                        }
+
+                        if (!action) {
+                            invalidCells.push(`${emp.code || emp.name} · ${date}: "${cellText}"`);
+                            finalizeStreak(getMergedShiftId(date, emp.id));
+                            return;
+                        }
+
+                        if (action.type === 'set' && (action.id === shiftB_id || action.id === shiftC_id) &&
+                            streakShiftId === action.id && streakLen + 1 > 6) {
+                            streakSkipped.push(`${emp.code || emp.name} · ${date}`);
+                            finalizeStreak(getMergedShiftId(date, emp.id));
+                            return;
+                        }
+
+                        if (!newSchedule[date]) newSchedule[date] = {};
+                        if (action.type === 'clear') {
+                            delete newSchedule[date][emp.id];
+                            finalizeStreak(undefined);
+                        } else {
+                            newSchedule[date][emp.id] = { id: action.id, isManual: true };
+                            finalizeStreak(action.id);
+                        }
+                        updatedCount++;
+                    });
+                }
+
+                setSchedule(newSchedule);
+
+                const parts = [`${updatedCount} cell(s) updated for ${monthNames[currentMonth]} ${currentYear}.`];
+                if (lockedSkipped) parts.push(`${lockedSkipped} locked shift-request cell(s) left unchanged.`);
+                if (unmatchedCodes.size) parts.push(`${unmatchedCodes.size} unmatched employee code(s) skipped: ${Array.from(unmatchedCodes).slice(0, 5).join(', ')}${unmatchedCodes.size > 5 ? '…' : ''}.`);
+                if (invalidCells.length) parts.push(`${invalidCells.length} cell(s) had an unrecognized shift code and were skipped.`);
+                if (streakSkipped.length) parts.push(`${streakSkipped.length} cell(s) skipped to keep Shift B/C under the 6-day straight cap.`);
+
+                showToast(parts.join(' '), (unmatchedCodes.size || invalidCells.length || streakSkipped.length) ? 'warning' : 'success');
+            };
+
+            const handleRosterUploadClick = () => {
+                if (typeof XLSX === 'undefined') {
+                    showToast('Excel library failed to load. Check your internet connection.', 'error');
+                    return;
+                }
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.xlsx,.xls';
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        try {
+                            const data = new Uint8Array(event.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            applyRosterUpload(workbook);
+                        } catch (err) {
+                            showToast('Failed to read the uploaded file. Make sure it is a valid .xlsx file exported from this template.', 'error');
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                };
+                input.click();
+            };
+
+            // --- SAVE MONTH AS A LOCKED RECORD (separate from the live, editable schedule) ---
+            const getMonthRecordKey = (month, year) => `${year}-${month}`;
+
+            const saveMonthRecord = () => {
+                const recordKey = getMonthRecordKey(currentMonth, currentYear);
+                const daysInMonth = getDaysInMonth(currentMonth, currentYear);
+                const dates = Array.from({ length: daysInMonth }, (_, i) => formatDate(i + 1, currentMonth, currentYear));
+
+                const monthSchedule = {};
+                dates.forEach(date => { if (schedule[date]) monthSchedule[date] = schedule[date]; });
+
+                const record = {
+                    monthLabel: `${monthNames[currentMonth]} ${currentYear}`,
+                    savedAt: new Date().toISOString(),
+                    schedule: monthSchedule,
+                    employees: JSON.parse(JSON.stringify(employees)),
+                    shiftTypes: JSON.parse(JSON.stringify(shiftTypes)),
+                    holidays: holidays.filter(h => dates.includes(h.date)),
+                    leaves: leaves.filter(l => dates.includes(l.date))
+                };
+
+                try {
+                    const updated = { ...savedRecords, [recordKey]: record };
+                    localStorage.setItem('shiftManagerSavedRecords', JSON.stringify(updated));
+                    setSavedRecords(updated);
+                    showToast(`${record.monthLabel} saved as a record.`);
+                } catch (e) {
+                    showToast('Failed to save month record.', 'error');
+                }
+            };
+
+            const restoreMonthRecord = () => {
+                const recordKey = getMonthRecordKey(currentMonth, currentYear);
+                const record = savedRecords[recordKey];
+                if (!record) return;
+                if (!window.confirm(`Restore the saved record for ${record.monthLabel} (saved ${new Date(record.savedAt).toLocaleString()})? This will overwrite the current roster for this month.`)) return;
+
+                setSchedule(prev => {
+                    const next = { ...prev };
+                    Object.keys(record.schedule).forEach(date => { next[date] = record.schedule[date]; });
+                    return next;
+                });
+                showToast(`${record.monthLabel} restored from saved record.`);
+            };
+
+            const getEmployeeStats = (employeeId) => {
+                const daysInMonth = getDaysInMonth(currentMonth, currentYear);
+                let stats = { total: 0, counts: {}, offTarget: 0, offActual: 0 };
+                shiftTypes.forEach(s => stats.counts[s.id] = 0);
+                stats.counts['L'] = 0; // Initialize Leave counter
+                
+                const emp = employees.find(e => e.id === employeeId);
+                stats.offTarget = emp ? getEffectiveOffTarget(emp, currentMonth, currentYear) : 0;
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = formatDate(day, currentMonth, currentYear);
+                    const shiftId = getShiftIdForDate(date, employeeId);
+                    
+                    if (shiftId) {
+                        stats.total++;
+                        if (stats.counts[shiftId] !== undefined) {
+                            stats.counts[shiftId]++;
+                        }
+                        
+                        // Dynamically handle the L shift so the app doesn't crash
+                        const shiftObj = shiftTypes.find(s => s.id === shiftId) || 
+                                       (shiftId === 'L' ? { shortName: 'L', name: 'Leave' } : null);
+                                       
+                        if (shiftObj && (shiftObj.shortName === 'OFF' || shiftObj.name === 'Day Off')) {
+                            stats.offActual++;
+                        }
+                    }
+                }
+                return stats;
+            };
+
+            const addEmployee = (newEmployee) => {
+                const id = employees.length > 0 ? Math.max(...employees.map(e => e.id)) + 1 : 1;
+                const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
+                const color = colors[id % colors.length];
+                setEmployees([...employees, { ...newEmployee, id, color }]);
+                setShowAddEmployee(false);
+            };
+
+            const updateEmployee = (id, updates) => {
+                setEmployees(employees.map(emp => emp.id === id ? { ...emp, ...updates } : emp));
+                setEditingEmployee(null);
+            };
+
+            // Drag-and-drop reordering: the position in the `employees` array is the display order
+            // everywhere (Schedule grid rows, Employees cards, exports). Dropping onto a target moves
+            // the dragged employee to that target's position. Works on the full list, so it stays
+            // correct even while a search/role filter is active. Persisted automatically via localStorage.
+            const moveEmployee = (fromId, toId) => {
+                if (fromId === null || toId === null || fromId === toId) return;
+                setEmployees(prev => {
+                    const fromIdx = prev.findIndex(e => e.id === fromId);
+                    const toIdx = prev.findIndex(e => e.id === toId);
+                    if (fromIdx === -1 || toIdx === -1) return prev;
+                    const next = [...prev];
+                    const [moved] = next.splice(fromIdx, 1);
+                    next.splice(toIdx, 0, moved);
+                    return next;
+                });
+                showToast('Employee order updated.');
+            };
+
+            const getDragProps = (employeeId) => ({
+                draggable: true,
+                onDragStart: (e) => {
+                    setDragEmpId(employeeId);
+                    e.dataTransfer.effectAllowed = 'move';
+                    try { e.dataTransfer.setData('text/plain', String(employeeId)); } catch (err) { }
+                },
+                onDragOver: (e) => {
+                    if (dragEmpId === null) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (dragOverEmpId !== employeeId) setDragOverEmpId(employeeId);
+                },
+                onDrop: (e) => {
+                    e.preventDefault();
+                    moveEmployee(dragEmpId, employeeId);
+                    setDragEmpId(null);
+                    setDragOverEmpId(null);
+                },
+                onDragEnd: () => { setDragEmpId(null); setDragOverEmpId(null); }
+            });
+
+            const deleteEmployee = (id) => {
+                if (window.confirm('Are you sure you want to delete this employee?')) {
+                    setEmployees(employees.filter(emp => emp.id !== id));
+                    const newSchedule = {};
+                    Object.keys(schedule).forEach(date => {
+                        const daySchedule = { ...schedule[date] };
+                        delete daySchedule[id];
+                        newSchedule[date] = daySchedule;
+                    });
+                    setSchedule(newSchedule);
+                    setLeaves(leaves.filter(l => l.empId !== id));
+                }
+            };
+
+            const filteredEmployees = employees.filter(emp => {
+                const term = searchTerm.toLowerCase();
+                const matchesSearch = emp.name.toLowerCase().includes(term) ||
+                                      emp.email.toLowerCase().includes(term) ||
+                                      (emp.code || '').toLowerCase().includes(term) ||
+                                      (emp.group || '').toLowerCase().includes(term);
+                const matchesRole = filterRole === 'all' || emp.role === filterRole;
+                return matchesSearch && matchesRole;
+            });
+
+            const nextMonth = () => {
+                if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(currentYear + 1); } 
+                else { setCurrentMonth(currentMonth + 1); }
+            };
+
+            const prevMonth = () => {
+                if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); } 
+                else { setCurrentMonth(currentMonth - 1); }
+            };
+
+            const renderScheduleView = () => {
+                const daysInMonth = getDaysInMonth(currentMonth, currentYear);
+                const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+                const monthRecordKey = `${currentYear}-${currentMonth}`;
+                const currentMonthRecord = savedRecords[monthRecordKey];
+
+                // Shift G's counter column is shown before Shift A's (and the rest keep their
+                // normal order) in the schedule's per-employee totals.
+                const gShiftForCounter = shiftTypes.find(s => s.shortName === 'G');
+                const counterOrderedShifts = gShiftForCounter
+                    ? [gShiftForCounter, ...shiftTypes.filter(s => s.shortName !== 'G')]
+                    : shiftTypes;
+
+                return (
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center flex-wrap gap-3">
+                            <div className="flex items-center gap-4">
+                                <button onClick={prevMonth} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded flex items-center">
+                                    <span className="material-icons text-[20px]">chevron_left</span>
+                                </button>
+                                <h2 className="text-2xl font-bold">
+                                    {monthNames[currentMonth]} {currentYear}
+                                </h2>
+                                <button onClick={nextMonth} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded flex items-center">
+                                    <span className="material-icons text-[20px]">chevron_right</span>
+                                </button>
+                            </div>
+                            <div className="flex gap-2 flex-wrap items-center">
+                                <button onClick={generateAutoSchedule} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 shadow-md hover:shadow-lg transition-all">
+                                    <span className="material-icons text-[16px]">calendar_today</span>
+                                    Auto Fill
+                                </button>
+                                <button onClick={clearSchedule} className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 shadow-md">
+                                    Clear All
+                                </button>
+                                <button onClick={saveMonthRecord} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-md flex items-center gap-2">
+                                    <span className="material-icons text-[16px]">bookmark_add</span>
+                                    Save Month as Record
+                                </button>
+                                {currentMonthRecord && (
+                                    <button onClick={restoreMonthRecord} title={`Saved ${new Date(currentMonthRecord.savedAt).toLocaleString()}`} className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 shadow-md flex items-center gap-2">
+                                        <span className="material-icons text-[16px]">restore</span>
+                                        Restore Saved
+                                    </button>
+                                )}
+                                <button onClick={exportMonthlyReport} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-md flex items-center gap-2">
+                                    <span className="material-icons text-[16px]">grid_on</span>
+                                    Export Monthly Report
+                                </button>
+                                <button onClick={downloadRosterTemplate} title="Download a fill-in-the-blanks Excel template for this month" className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 shadow-md flex items-center gap-2">
+                                    <span className="material-icons text-[16px]">description</span>
+                                    Download Roster Template
+                                </button>
+                                <button onClick={handleRosterUploadClick} title="Upload a filled-in roster template for this month" className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 shadow-md flex items-center gap-2">
+                                    <span className="material-icons text-[16px]">upload_file</span>
+                                    Upload Roster
+                                </button>
+                            </div>
+                        </div>
+                        {currentMonthRecord && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 -mt-2">
+                                <span className="material-icons text-[14px]">check_circle</span>
+                                Last saved record: {new Date(currentMonthRecord.savedAt).toLocaleString()}
+                            </div>
+                        )}
+
+                        <div className="overflow-x-auto pb-4">
+                            <div className="min-w-max border dark:border-gray-700 rounded-lg overflow-hidden flex flex-col">
+                                <div className="flex bg-gray-100 dark:bg-gray-800">
+                                    <div className="w-48 shrink-0 p-3 font-semibold border-r dark:border-gray-700">Employee</div>
+                                    <div className="flex">
+                                        {days.map(day => {
+                                            const date = formatDate(day, currentMonth, currentYear);
+                                            const isWeekendDay = isWeekend(day, currentMonth, currentYear);
+                                            
+                                            const dayHolidays = holidays.filter(h => h.date === date);
+                                            const isHolidayDay = dayHolidays.length > 0;
+                                            
+                                            return (
+                                                <div key={day} className={`w-16 shrink-0 p-2 text-center font-semibold border-r dark:border-gray-700 text-sm ${isWeekendDay || isHolidayDay ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : ''}`}>
+                                                    <div>{day}</div>
+                                                    <div className="text-xs opacity-75">{['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][getDayOfWeek(day, currentMonth, currentYear)]}</div>
+                                                    {isHolidayDay && (
+                                                        <div className="text-[10px] mt-1 leading-tight text-red-600 dark:text-red-400 font-bold truncate" title={dayHolidays.map(h => h.name).join(', ')}>
+                                                            {dayHolidays[0].name}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="flex shrink-0 border-l-[3px] border-gray-300 dark:border-gray-500 bg-gray-200 dark:bg-gray-700">
+                                        {counterOrderedShifts.map(shift => (
+                                            <div key={`head-sum-${shift.id}`} className="w-12 shrink-0 p-2 text-center font-bold text-xs border-r dark:border-gray-600 flex flex-col justify-center" title={`Total ${shift && shift.name}`}>
+                                                {shift && shift.shortName}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {filteredEmployees.map(employee => {
+                                    const stats = getEmployeeStats(employee.id);
+                                    const quotaMatched = stats.offActual === stats.offTarget;
+                                    
+                                    return (
+                                        <div key={employee.id}
+                                            onDragOver={getDragProps(employee.id).onDragOver}
+                                            onDrop={getDragProps(employee.id).onDrop}
+                                            className={`flex border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${dragEmpId === employee.id ? 'opacity-40' : ''} ${dragOverEmpId === employee.id && dragEmpId !== employee.id ? 'border-t-4 border-t-blue-500' : ''}`}>
+                                            <div {...getDragProps(employee.id)} title="Drag to reorder employee" className="w-48 shrink-0 p-3 font-medium border-r dark:border-gray-700 flex items-center gap-1 text-white cursor-grab active:cursor-grabbing select-none" style={{ backgroundColor: employee && employee.color ? employee.color : '#666' }}>
+                                                <span className="material-icons text-[18px] opacity-70 shrink-0">drag_indicator</span>
+                                                <div>
+                                                    <div>{employee && employee.name}</div>
+                                                    <div className="text-xs opacity-90">{employee && employee.role} • {employee && employee.country}</div>
+                                                    {stats.offTarget > 0 && (
+                                                        <div className={`text-[10px] mt-1 px-1 py-0.5 rounded inline-block bg-black/20 ${quotaMatched ? 'text-green-200' : 'text-yellow-200 font-bold'}`}>
+                                                            Quota: {stats.offActual}/{stats.offTarget} OFFs
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex">
+                                                {days.map(day => {
+                                                    const date = formatDate(day, currentMonth, currentYear);
+                                                    const shiftId = getShiftIdForDate(date, employee.id);
+                                                    let shift = getShiftForEmployee(shiftId, employee);
+                                                    
+                                                    const isManual = isShiftManual(date, employee.id);
+                                                    const isRequested = isShiftRequested(date, employee.id);
+                                                    
+                                                    const isHoliday = checkIsHoliday(date, employee, holidays, countries);
+                                                    const isLeave = leaves.some(l => l.date === date && l.empId === employee.id);
+                                                    const isWeekendDay = isWeekend(day, currentMonth, currentYear);
+                                                    
+                                                    let customBg = shift ? shift.color : null;
+                                                    if (!customBg) customBg = darkMode ? '#1f2937' : '#FFFFFF';
+                                                    if (isLeave) customBg = darkMode ? '#374151' : '#E5E7EB'; 
+                                                    
+                                                    return (
+                                                        <div key={day}
+                                                            className={`relative w-16 shrink-0 p-1 border-r dark:border-gray-700 flex flex-col items-center justify-center transition-colors hover:opacity-80 ${isRequested ? 'cursor-not-allowed' : 'cursor-pointer'} ${isWeekendDay && !shift ? 'bg-red-50 dark:bg-red-900/20' : ''}`}
+                                                            style={{ backgroundColor: customBg }}
+                                                            onClick={() => {
+                                                                // Cells locked by a Shift Request cannot be overridden from the grid —
+                                                                // remove the request first (Shift Requests page) to change this cell.
+                                                                if (isRequested) return;
+                                                                const nextShiftId = ((shiftId || 0) % shiftTypes.length) + 1;
+                                                                assignShift(date, employee.id, nextShiftId);
+                                                            }}
+                                                            title={`${employee.name} - ${shift ? shift.name : 'No shift'}${shift && shift.regionCode ? ` [${shift.regionCode}]` : ''} ${isHoliday ? '(Holiday)' : ''} ${isLeave ? '(Leave)' : ''} ${isRequested ? '(Staff Requested — locked, remove the request to change it)' : (isManual ? '(Manually Assigned)' : '')}`}
+                                                        >
+                                                            <span className={`text-xs font-bold ${darkMode && (!shift || !shift.color) ? 'text-white' : 'text-gray-900'}`}>{shift ? shift.shortName : '-'}</span>
+                                                            
+                                                            {(isHoliday || isLeave) && <span className="text-[9px] text-blue-600 dark:text-blue-400 leading-none mt-0.5">*{isLeave ? 'LV' : 'HL'}</span>}
+                                                            
+                                                            {isRequested && shift && (
+                                                                <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-white border border-gray-400 rounded-full" title="Staff Requested (locked)"></div>
+                                                            )}
+                                                            {isManual && !isRequested && shift && (
+                                                                <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-yellow-400 rounded-full" title="Manually Assigned"></div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="flex shrink-0 border-l-[3px] border-gray-300 dark:border-gray-500 bg-gray-50 dark:bg-gray-800/50">
+                                                {counterOrderedShifts.map(shift => (
+                                                    <div key={`sum-${employee.id}-${shift.id}`} className="w-12 shrink-0 p-2 text-center text-sm font-semibold border-r dark:border-gray-700 flex items-center justify-center">
+                                                        {stats.counts[shift.id] > 0 ? stats.counts[shift.id] : <span className="text-gray-300 dark:text-gray-600">-</span>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+
+                                <div className="border-t-[3px] border-gray-300 dark:border-gray-500"></div>
+                                {counterOrderedShifts.map(shift => {
+                                    const isWorkShift = shift.name !== 'Day Off' && shift.shortName !== 'OFF';
+                                    if (!isWorkShift) return null; 
+
+                                    return (
+                                        <div key={`summary-${shift.id}`} className="flex border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80">
+                                            <div className="w-48 shrink-0 p-3 text-sm font-medium border-r dark:border-gray-700 flex items-center justify-end text-gray-600 dark:text-gray-400">
+                                                Total {shift.shortName}:
+                                            </div>
+                                            <div className="flex">
+                                                {days.map(day => {
+                                                    const date = formatDate(day, currentMonth, currentYear);
+                                                    
+                                                    const count = employees.filter(emp => getShiftIdForDate(date, emp.id) === shift.id).length;
+                                                    
+                                                    const isWeekendDay = isWeekend(day, currentMonth, currentYear);
+                                                    const dayHolidays = holidays.filter(h => h.date === date);
+                                                    const isHolidayDay = dayHolidays.length > 0;
+                                                    
+                                                    let isWarning = false;
+                                                    if (shift.shortName === 'M' || shift.shortName === 'A' || shift.shortName === 'N') {
+                                                        isWarning = count !== 1;
+                                                    }
+
+                                                    return (
+                                                        <div key={`count-${day}`} 
+                                                            className={`w-16 shrink-0 p-2 text-center text-sm font-bold border-r dark:border-gray-700 transition-colors
+                                                                ${isWeekendDay || isHolidayDay ? 'bg-red-50/50 dark:bg-red-900/10' : ''} 
+                                                                ${isWarning ? 'text-red-500 dark:text-red-400' : 'text-gray-700 dark:text-gray-300'}
+                                                            `}>
+                                                            {count}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="flex shrink-0 border-l-[3px] border-transparent bg-gray-200 dark:bg-gray-700 opacity-50">
+                                                {shiftTypes.map(s => <div key={`empty-bot-${s.id}`} className="w-12 shrink-0 border-r dark:border-gray-600"></div>)}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <h3 className="font-semibold mb-3">Shift Codes & Legend</h3>
+                            <div className="flex flex-wrap gap-4 mb-4">
+                                {shiftTypes.map(shift => (
+                                    <div key={shift.id} className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded flex items-center justify-center text-xs font-bold text-gray-900 shadow-sm" style={{ backgroundColor: shift.color }}>
+                                            {shift.shortName}
+                                        </div>
+                                        <div className="text-sm">
+                                            <div className="font-medium">{shift.name}</div>
+                                            {shift.start && shift.end && (
+                                                <div className="text-xs text-gray-500 dark:text-gray-400">{shift.start} - {shift.end}</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex flex-wrap gap-4 text-xs text-gray-500 dark:text-gray-400 border-t dark:border-gray-700 pt-3">
+                                <div className="flex items-center gap-1"><span className="text-blue-600 dark:text-blue-400 font-bold">*HL</span> = Country Holiday</div>
+                                <div className="flex items-center gap-1"><span className="text-blue-600 dark:text-blue-400 font-bold">*LV</span> = Employee Leave</div>
+                                <div className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-yellow-400 rounded-full"></span> = Manually Assigned Shift</div>
+                                <div className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-white border border-gray-400 rounded-full"></span> = Staff-Requested Shift (locked, survives Clear All, can't be manually overridden — remove/edit the request instead)</div>
+                                <div className="flex items-center gap-1">Auto Fill keeps each staff member's monthly Shift B and Shift C counts as close as possible.</div>
+                                <div className="flex items-center gap-1">Auto Fill caps Shift B and Shift C at 6 straight days each &mdash; a break is required after that (only exceeded in edge cases, e.g. when the whole team is already at the cap).</div>
+                                <div className="flex items-center gap-1">On Saturdays, Sundays, and Public Holidays, Auto Fill schedules only one Shift A, one Shift B, and one Shift C, and never uses Shift G.</div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderEmployeesView = () => (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-bold">Employees</h2>
+                        <div className="flex gap-2">
+                            <button onClick={saveEmployeeConfig} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+                                <span className="material-icons text-[16px]">save</span> Save Changes
+                            </button>
+                            <button onClick={() => setShowAddEmployee(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                                <span className="material-icons text-[16px]">add</span> Add Employee
+                            </button>
+                        </div>
+                    </div>
+
+                    <p className="text-sm text-gray-500 dark:text-gray-400 -mt-2 flex items-center gap-1">
+                        <span className="material-icons text-[16px]">drag_indicator</span>
+                        Drag an employee card onto another to change the order. The same order is used in the Schedule grid and Excel exports.
+                    </p>
+
+                    <div className="flex gap-4">
+                        <div className="flex-1 relative">
+                            <span className="material-icons absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-[20px]">search</span>
+                            <input type="text" placeholder="Search employees..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-800" />
+                        </div>
+                        <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} className="px-4 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-800">
+                            <option value="all">All Roles</option>
+                            <option value="Manager">Manager</option>
+                            <option value="Staff">Staff</option>
+                        </select>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredEmployees.map(employee => {
+                            const cObj = countries.find(c => c.code === employee.country);
+                            const countryName = cObj ? cObj.name : employee.country;
+                            return (
+                                <div key={employee.id}
+                                    {...getDragProps(employee.id)}
+                                    className={`border dark:border-gray-700 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-grab active:cursor-grabbing ${dragEmpId === employee.id ? 'opacity-40' : ''} ${dragOverEmpId === employee.id && dragEmpId !== employee.id ? 'ring-2 ring-blue-500 border-blue-500' : ''}`}>
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <span className="material-icons text-[20px] text-gray-400 -mr-1 select-none" title="Drag to reorder">drag_indicator</span>
+                                            <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: employee.color }}>
+                                                {employee.name ? employee.name.charAt(0) : '?'}
+                                            </div>
+                                            <div>
+                                                <h3 className="font-semibold">{employee.name} {employee.code && <span className="text-xs font-normal text-gray-400">({employee.code})</span>}</h3>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">{employee.role} • {employee.country} ({countryName})</p>
+                                                {employee.group && (
+                                                    <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 font-medium">{employee.group}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-1">
+                                            <button onClick={() => setEditingEmployee(employee)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded flex items-center">
+                                                <span className="material-icons text-[16px]">edit</span>
+                                            </button>
+                                            <button onClick={() => deleteEmployee(employee.id)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-red-600 flex items-center">
+                                                <span className="material-icons text-[16px]">delete</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1 text-sm">
+                                        <p className="text-gray-600 dark:text-gray-400">{employee.email}</p>
+                                        <p className="text-gray-600 dark:text-gray-400">{employee.phone}</p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+
+            const renderShiftRequestsView = () => {
+                const shiftOptions = shiftTypes; // includes Day Off, so staff can also request OFF on a specific date
+
+                // Group recurring (weekday) requests together into one row; keep single-date requests as-is.
+                const groupsMap = {};
+                const singleRows = [];
+                shiftRequests.forEach(r => {
+                    if (r.groupId) {
+                        if (!groupsMap[r.groupId]) {
+                            groupsMap[r.groupId] = { groupId: r.groupId, label: r.groupLabel, empId: r.empId, shiftId: r.shiftId, note: r.note, createdAt: r.createdAt, dates: [] };
+                        }
+                        groupsMap[r.groupId].dates.push(r.date);
+                    } else {
+                        singleRows.push({ type: 'single', ...r });
+                    }
+                });
+                const groupRows = Object.values(groupsMap).map(g => ({ type: 'group', ...g, dates: g.dates.sort() }));
+                const displayRows = [...groupRows, ...singleRows].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+                return (
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-2xl font-bold">Shift Requests</h2>
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 -mt-4">
+                            Staff can request a shift for one specific date, recurring on a chosen day of the week across a month (e.g. every Friday in September), or across a chosen week of the month (e.g. workdays in the first week of September). Once submitted, requests are placed directly on the roster and locked in place &mdash; Auto Fill will build around them, and they will not be removed by Clear All.
+                        </p>
+
+                        <div className="border dark:border-gray-700 rounded-lg p-6">
+                            <h3 className="text-xl font-semibold mb-4">New Shift Request</h3>
+
+                            <div className="flex gap-4 mb-4 flex-wrap">
+                                <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                                    <input type="radio" name="reqMode" checked={newRequest.mode === 'date'} onChange={() => setNewRequest({ ...newRequest, mode: 'date' })} />
+                                    Specific Date
+                                </label>
+                                <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                                    <input type="radio" name="reqMode" checked={newRequest.mode === 'weekday'} onChange={() => setNewRequest({ ...newRequest, mode: 'weekday' })} />
+                                    Day of Week (recurring for a month)
+                                </label>
+                                <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                                    <input type="radio" name="reqMode" checked={newRequest.mode === 'weekOfMonth'} onChange={() => setNewRequest({ ...newRequest, mode: 'weekOfMonth' })} />
+                                    Week of Month (e.g. workdays, 1st week)
+                                </label>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Employee</label>
+                                    <select value={newRequest.empId} onChange={(e) => setNewRequest({ ...newRequest, empId: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900">
+                                        <option value="">Select employee</option>
+                                        {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                                    </select>
+                                </div>
+
+                                {newRequest.mode === 'date' && (
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Date</label>
+                                        <input type="date" value={newRequest.date} onChange={(e) => setNewRequest({ ...newRequest, date: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900" />
+                                    </div>
+                                )}
+
+                                {newRequest.mode === 'weekday' && (
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Day of Week</label>
+                                        <select value={newRequest.weekday} onChange={(e) => setNewRequest({ ...newRequest, weekday: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900">
+                                            {weekdayNames.map((wd, i) => <option key={i} value={i}>{wd}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+
+                                {newRequest.mode === 'weekOfMonth' && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Week of Month <span className="font-normal text-gray-400">(weeks end Sunday)</span></label>
+                                            <select value={newRequest.weekOfMonth} onChange={(e) => setNewRequest({ ...newRequest, weekOfMonth: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900">
+                                                {getWeeksOfMonth(parseInt(newRequest.reqMonth), parseInt(newRequest.reqYear)).map((w, i) => (
+                                                    <option key={i} value={i + 1}>
+                                                        {`Week ${i + 1} (${shortDateLabel(w.start, parseInt(newRequest.reqMonth), parseInt(newRequest.reqYear))} \u2013 ${shortDateLabel(w.end, parseInt(newRequest.reqMonth), parseInt(newRequest.reqYear))})`}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Days to Include</label>
+                                            <select value={newRequest.dayScope} onChange={(e) => setNewRequest({ ...newRequest, dayScope: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900">
+                                                <option value="workdays">Workdays only (Mon-Fri)</option>
+                                                <option value="all">All days (Mon-Sun)</option>
+                                            </select>
+                                        </div>
+                                    </>
+                                )}
+
+                                {(newRequest.mode === 'weekday' || newRequest.mode === 'weekOfMonth') && (
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Month</label>
+                                        <div className="flex gap-2">
+                                            <select value={newRequest.reqMonth} onChange={(e) => setNewRequest({ ...newRequest, reqMonth: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900">
+                                                {monthNames.map((mn, i) => <option key={i} value={i}>{mn}</option>)}
+                                            </select>
+                                            <input type="number" value={newRequest.reqYear} onChange={(e) => setNewRequest({ ...newRequest, reqYear: e.target.value })} className="w-24 px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900" />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Requested Shift</label>
+                                    <select value={newRequest.shiftId} onChange={(e) => setNewRequest({ ...newRequest, shiftId: e.target.value })} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900">
+                                        <option value="">Select shift</option>
+                                        {shiftOptions.map(s => <option key={s.id} value={s.id}>{s.name} ({s.shortName})</option>)}
+                                        <option value="L">Leave (L)</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <button
+                                        onClick={() => {
+                                            submitShiftRequest(newRequest);
+                                            setNewRequest({ ...newRequest, date: '', note: '' });
+                                        }}
+                                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2">
+                                        <span className="material-icons text-[16px]">send</span> Submit Request
+                                    </button>
+                                </div>
+
+                                {newRequest.mode === 'weekday' && (
+                                    <div className="md:col-span-4 text-xs text-gray-500 dark:text-gray-400 -mt-2">
+                                        This will create one request for every {weekdayNames[newRequest.weekday]} in {monthNames[newRequest.reqMonth]} {newRequest.reqYear}.
+                                    </div>
+                                )}
+
+                                {newRequest.mode === 'weekOfMonth' && (() => {
+                                    const wm = parseInt(newRequest.reqMonth), wy = parseInt(newRequest.reqYear);
+                                    const range = getWeeksOfMonth(wm, wy)[parseInt(newRequest.weekOfMonth) - 1];
+                                    return (
+                                        <div className="md:col-span-4 text-xs text-gray-500 dark:text-gray-400 -mt-2">
+                                            This will create one request for each {newRequest.dayScope === 'all' ? 'day' : 'workday (Mon-Fri)'} from{' '}
+                                            {range ? `${shortDateLabel(range.start, wm, wy)} to ${shortDateLabel(range.end, wm, wy)}` : 'the selected week'}, {wy}.
+                                        </div>
+                                    );
+                                })()}
+
+                                <div className="md:col-span-4">
+                                    <label className="block text-sm font-medium mb-1">Note (optional)</label>
+                                    <input type="text" value={newRequest.note} onChange={(e) => setNewRequest({ ...newRequest, note: e.target.value })} placeholder="e.g. Requesting morning shift for a personal appointment" className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-900" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="border dark:border-gray-700 rounded-lg p-6">
+                            <h3 className="text-xl font-semibold mb-4">All Requests ({displayRows.length})</h3>
+                            {displayRows.length === 0 ? (
+                                <p className="text-gray-500 dark:text-gray-400 text-sm">No shift requests yet.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="text-left border-b dark:border-gray-700">
+                                                <th className="py-2 pr-4">Employee</th>
+                                                <th className="py-2 pr-4">Date(s)</th>
+                                                <th className="py-2 pr-4">Requested Shift</th>
+                                                <th className="py-2 pr-4">Note</th>
+                                                <th className="py-2 pr-4">Submitted</th>
+                                                <th className="py-2 pr-4"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {displayRows.map(row => {
+                                                const emp = employees.find(e => e.id === row.empId);
+                                                const shift = row.shiftId === 'L' ? { name: 'Leave', shortName: 'L' } : shiftTypes.find(s => s.id === row.shiftId);
+                                                const key = row.type === 'group' ? `g-${row.groupId}` : `s-${row.id}`;
+                                                return (
+                                                    <tr key={key} className="border-b dark:border-gray-800">
+                                                        <td className="py-2 pr-4">{emp ? emp.name : 'Unknown'}</td>
+                                                        <td className="py-2 pr-4">
+                                                            {row.type === 'group' ? (
+                                                                <span className="flex items-center gap-1">
+                                                                    <span className="material-icons text-[14px] text-purple-600">repeat</span>
+                                                                    {row.label} <span className="text-gray-400">({row.dates.length} dates)</span>
+                                                                </span>
+                                                            ) : row.date}
+                                                        </td>
+                                                        <td className="py-2 pr-4">{shift ? `${shift.name} (${shift.shortName})` : row.shiftId}</td>
+                                                        <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{row.note || '-'}</td>
+                                                        <td className="py-2 pr-4 text-gray-500 dark:text-gray-400">{new Date(row.createdAt).toLocaleString()}</td>
+                                                        <td className="py-2 pr-4">
+                                                            <button onClick={() => row.type === 'group' ? removeShiftRequestGroup(row.groupId) : removeShiftRequest(row.id)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-red-600 flex items-center">
+                                                                <span className="material-icons text-[16px]">delete</span>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderAnalyticsView = () => {
+                return (
+                    <div className="space-y-6">
+                        <h2 className="text-2xl font-bold">Analytics</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm text-blue-600 dark:text-blue-400">Total Employees</p>
+                                    <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">{employees.length}</p>
+                                </div>
+                                <span className="material-icons text-[48px] text-blue-600 dark:text-blue-400 opacity-50">group</span>
+                            </div>
+                            <div className="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-lg flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm text-purple-600 dark:text-purple-400">Active Holidays & Leaves</p>
+                                    <p className="text-3xl font-bold text-purple-900 dark:text-purple-100">{holidays.length + leaves.length}</p>
+                                </div>
+                                <span className="material-icons text-[48px] text-purple-600 dark:text-purple-400 opacity-50">flight_takeoff</span>
+                            </div>
+                        </div>
+
+                        <div className="border dark:border-gray-700 rounded-lg p-6">
+                            <h3 className="text-xl font-semibold mb-4">Employee Shift Distribution ({monthNames[currentMonth]})</h3>
+                            <div className="space-y-4">
+                                {employees.map(employee => {
+                                    const stats = getEmployeeStats(employee.id);
+
+                                    return (
+                                        <div key={employee.id} className="space-y-2 border-b dark:border-gray-700 pb-3 last:border-0">
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <span className="font-medium mr-2">{employee.name}</span>
+                                                </div>
+                                                <span className="text-sm text-gray-500 dark:text-gray-400">{stats.total} days scheduled</span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2 text-xs text-gray-900">
+                                                {shiftTypes.map(shift => {
+                                                    const count = stats.counts[shift.id];
+                                                    if (count === 0) return null;
+                                                    return (
+                                                        <div key={shift.id} className="px-3 py-2 rounded flex gap-2 items-center" style={{ backgroundColor: shift.color || '#E5E7EB' }}>
+                                                            <div className="font-semibold">{shift.name}:</div><div>{count}</div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderSettingsView = () => {
+                const addShiftType = () => {
+                    const newShift = { id: Date.now(), name: 'New Shift', start: '09:00', end: '17:00', color: '#D1D5DB', shortName: 'NS', regionCodes: {} };
+                    setShiftTypes([...shiftTypes, newShift]);
+                };
+                const updateShiftType = (id, updates) => setShiftTypes(shiftTypes.map(shift => shift.id === id ? { ...shift, ...updates } : shift));
+                const deleteShiftType = (id) => { if (shiftTypes.length > 1) setShiftTypes(shiftTypes.filter(shift => shift.id !== id)); };
+
+                const handleAddHoliday = () => {
+                    if (newHoliday.date && newHoliday.name && newHoliday.countryCode) {
+                        setHolidays([...holidays, { ...newHoliday, id: Date.now() }]);
+                        setNewHoliday({ date: '', name: '', countryCode: countries.length > 0 ? countries[0].code : '' });
+                    }
+                };
+
+                const handleAddCountry = () => {
+                    if (newCountry.name && newCountry.code && newCountry.code.length === 2) {
+                        if (!countries.find(c => c.code === newCountry.code.toUpperCase())) {
+                            setCountries([...countries, { name: newCountry.name, code: newCountry.code.toUpperCase() }]);
+                            setNewCountry({ name: '', code: '' });
+                        } else {
+                            alert("Country code already exists!");
+                        }
+                    }
+                };
+
+                return (
+                    <div className="space-y-6">
+                        <h2 className="text-2xl font-bold">Settings</h2>
+
+                        {/* --- COUNTRY SETTINGS --- */}
+                        <div className="border dark:border-gray-700 rounded-lg p-6">
+                            <h3 className="text-xl font-semibold mb-4 text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                                <span className="material-icons">public</span> Countries & Regions
+                            </h3>
+                            <div className="space-y-4">
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    <input type="text" placeholder="Country Name (e.g. Japan)" value={newCountry.name} onChange={e => setNewCountry({...newCountry, name: e.target.value})} className="flex-1 min-w-[200px] px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-800" />
+                                    <input type="text" placeholder="2-Letter Code (e.g. JP)" maxLength="2" value={newCountry.code.toUpperCase()} onChange={e => setNewCountry({...newCountry, code: e.target.value.toUpperCase()})} className="w-48 px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-800 font-bold uppercase" />
+                                    <button onClick={handleAddCountry} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add Country</button>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {countries.map(c => (
+                                        <div key={c.code} className="bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 px-3 py-1 rounded-full flex items-center gap-2 text-sm">
+                                            <span className="font-bold">{c.code}</span> - {c.name}
+                                            <button onClick={() => setCountries(countries.filter(x => x.code !== c.code))} className="text-red-500 hover:text-red-700 ml-1">
+                                                <span className="material-icons text-[14px]">close</span>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* --- HOLIDAY SETTINGS --- */}
+                        <div className="border dark:border-gray-700 rounded-lg p-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                                    <span className="material-icons">event_busy</span> Holidays
+                                </h3>
+                                <button onClick={saveHolidayConfig} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+                                    <span className="material-icons text-[16px]">save</span> Save Holidays
+                                </button>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2 mb-4">
+                                Need to request leave for a specific employee? Use the Shift Requests page and choose "Leave (L)" as the requested shift &mdash; it's added straight to the roster there.
+                            </p>
+                            
+                            <div className="max-w-xl">
+                                <h4 className="font-bold mb-3 flex items-center gap-2"><span className="material-icons text-[18px]">public</span> Public Holidays (By Country)</h4>
+                                <div className="flex flex-col gap-2 mb-4">
+                                    <input type="date" value={newHoliday.date} onChange={e => setNewHoliday({...newHoliday, date: e.target.value})} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-800" />
+                                    <input type="text" placeholder="Holiday Name" value={newHoliday.name} onChange={e => setNewHoliday({...newHoliday, name: e.target.value})} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-800" />
+                                    <select value={newHoliday.countryCode} onChange={e => setNewHoliday({...newHoliday, countryCode: e.target.value})} className="w-full px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-800">
+                                        <option value="" disabled>Select Country</option>
+                                        {countries.map(c => <option key={c.code} value={c.code}>{c.code} - {c.name}</option>)}
+                                    </select>
+                                    <button onClick={handleAddHoliday} className="w-full py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors">Add Holiday</button>
+                                </div>
+                                <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2">
+                                    {holidays.length === 0 && <p className="text-sm text-gray-500">No holidays added.</p>}
+                                    {holidays.map(h => (
+                                        <div key={h.id} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800/50 rounded border dark:border-gray-700 text-sm">
+                                            <div>
+                                                <div className="font-semibold">{h.name} <span className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-1.5 py-0.5 rounded text-[10px]">{h.countryCode || h.country}</span></div>
+                                                <div className="text-xs text-gray-500">{new Date(h.date).toLocaleDateString()}</div>
+                                            </div>
+                                            <button onClick={() => setHolidays(holidays.filter(x => x.id !== h.id))} className="text-red-500 hover:text-red-700"><span className="material-icons text-[18px]">delete</span></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* --- OFF DAY RULES (PER REGION) --- */}
+                        <div className="border dark:border-gray-700 rounded-lg p-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                                    <span className="material-icons">rule</span> OFF Day Rules (Per Region)
+                                </h3>
+                                <button onClick={saveOffRules} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+                                    <span className="material-icons text-[16px]">save</span> Save OFF Rules
+                                </button>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2 mb-4">
+                                The total OFF days for a region each month is always Saturdays + Sundays, plus any public holidays configured for that region &mdash; it recalculates automatically every month, and Auto Fill will never assign more OFF days than this natural count. Set a number below only if you want a stricter (lower) monthly cap than that natural count &mdash; Auto Fill will then prioritize giving staff work over another OFF day once they hit it. A number set higher than the natural count has no effect, since OFF days can never exceed the natural count regardless. Leave a region blank to just use the automatic monthly default. Note: hard safety rules (5-day fatigue cap, required breaks after Shift B/C streaks or night-shift transitions) can still occasionally push someone's actual OFF days slightly over this number, since rest can't be skipped even once the quota is reached.
+                            </p>
+                            <div className="max-w-lg space-y-2">
+                                {countries.map(c => {
+                                    const naturalDefault = getNaturalOffDaysForRegion(c.code, currentMonth, currentYear);
+                                    return (
+                                        <div key={c.code} className="flex items-center justify-between gap-4 p-2 border dark:border-gray-700 rounded-lg">
+                                            <div className="text-sm">
+                                                <span className="font-medium">{c.code}</span> <span className="text-gray-400">- {c.name}</span>
+                                                <div className="text-xs text-gray-400">Default for {monthNames[currentMonth]} {currentYear}: {naturalDefault} days (weekends + holidays)</div>
+                                            </div>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max={naturalDefault}
+                                                title={`Can only cap OFF days at or below the natural count (${naturalDefault} for ${monthNames[currentMonth]} ${currentYear})`}
+                                                placeholder={`${naturalDefault}`}
+                                                value={offRules[c.code] !== undefined ? offRules[c.code] : ''}
+                                                onChange={(e) => setOffRules({ ...offRules, [c.code]: e.target.value })}
+                                                className="w-28 px-3 py-1.5 border dark:border-gray-700 rounded-lg dark:bg-gray-800 text-right shrink-0"
+                                            />
+                                        </div>
+                                    );
+                                })}
+                                {countries.length === 0 && <p className="text-sm text-gray-500">Add a country in Employee Configuration first.</p>}
+                            </div>
+                        </div>
+
+                        <div className="border dark:border-gray-700 rounded-lg p-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-semibold">Shift Codes</h3>
+                                <div className="flex gap-2">
+                                    <button onClick={saveShiftCodes} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+                                        <span className="material-icons text-[16px]">save</span> Save Shift Codes
+                                    </button>
+                                    <button onClick={addShiftType} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                                        <span className="material-icons text-[16px]">add</span> Add Shift Code
+                                    </button>
+                                </div>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2 mb-4">
+                                Give each shift code its own Region Code per country (e.g. an internal reference like "TS-01") so it lines up with each region's own numbering &mdash; it's just a label and doesn't change the shift's actual time. For a shift that applies to every region (like OFF or Leave), type "ALL" in one Region Code column and leave the rest blank.
+                            </p>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-100 dark:bg-gray-800">
+                                            <th className="border dark:border-gray-700 p-2 text-left font-semibold">Shift Name</th>
+                                            <th className="border dark:border-gray-700 p-2 text-left font-semibold">Short Code</th>
+                                            <th className="border dark:border-gray-700 p-2 text-left font-semibold">Start Time</th>
+                                            <th className="border dark:border-gray-700 p-2 text-left font-semibold">End Time</th>
+                                            <th className="border dark:border-gray-700 p-2 text-left font-semibold">Color</th>
+                                            {countries.map(c => (
+                                                <th key={c.code} className="border dark:border-gray-700 p-2 text-left font-semibold whitespace-nowrap">Region Code {c.code}</th>
+                                            ))}
+                                            <th className="border dark:border-gray-700 p-2 w-10"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {shiftTypes.map(shift => (
+                                            <tr key={shift.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                                                <td className="border dark:border-gray-700 p-1">
+                                                    <input type="text" value={shift.name} onChange={(e) => updateShiftType(shift.id, { name: e.target.value })} className="w-full min-w-[110px] px-2 py-1.5 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded" />
+                                                </td>
+                                                <td className="border dark:border-gray-700 p-1">
+                                                    <input type="text" value={shift.shortName} maxLength="4" onChange={(e) => updateShiftType(shift.id, { shortName: e.target.value })} className="w-16 px-2 py-1.5 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded" />
+                                                </td>
+                                                <td className="border dark:border-gray-700 p-1">
+                                                    <input type="time" lang="en-GB" value={shift.start} onChange={(e) => updateShiftType(shift.id, { start: e.target.value })} className="w-full min-w-[100px] px-2 py-1.5 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded" />
+                                                </td>
+                                                <td className="border dark:border-gray-700 p-1">
+                                                    <input type="time" lang="en-GB" value={shift.end} onChange={(e) => updateShiftType(shift.id, { end: e.target.value })} className="w-full min-w-[100px] px-2 py-1.5 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded" />
+                                                </td>
+                                                <td className="border dark:border-gray-700 p-1">
+                                                    <div className="flex items-center gap-2 px-1">
+                                                        <input type="color" value={shift.color} onChange={(e) => updateShiftType(shift.id, { color: e.target.value })} className="w-8 h-8 border dark:border-gray-700 rounded cursor-pointer shrink-0" />
+                                                    </div>
+                                                </td>
+                                                {countries.map(c => (
+                                                    <td key={c.code} className="border dark:border-gray-700 p-1">
+                                                        <input
+                                                            type="text"
+                                                            value={(shift.regionCodes && shift.regionCodes[c.code]) || ''}
+                                                            placeholder="-"
+                                                            onChange={(e) => updateShiftType(shift.id, { regionCodes: { ...(shift.regionCodes || {}), [c.code]: e.target.value } })}
+                                                            className="w-full min-w-[90px] px-2 py-1.5 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
+                                                        />
+                                                    </td>
+                                                ))}
+                                                <td className="border dark:border-gray-700 p-1 text-center">
+                                                    <button onClick={() => deleteShiftType(shift.id)} disabled={shiftTypes.length <= 1} className="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded disabled:opacity-30 disabled:cursor-not-allowed">
+                                                        <span className="material-icons text-[18px]">delete</span>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {/* Leave (L) is a built-in pseudo-shift used by Shift Requests and the schedule grid;
+                                            its color and region codes are configurable here but it isn't part of the Auto Fill
+                                            planning shifts, so its name/code/hours are fixed. */}
+                                        <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/50 bg-gray-50/50 dark:bg-gray-800/30">
+                                            <td className="border dark:border-gray-700 p-1">
+                                                <span className="block px-2 py-1.5 text-gray-500 dark:text-gray-400">Leave</span>
+                                            </td>
+                                            <td className="border dark:border-gray-700 p-1">
+                                                <span className="block px-2 py-1.5 text-gray-500 dark:text-gray-400">L</span>
+                                            </td>
+                                            <td className="border dark:border-gray-700 p-1">
+                                                <span className="block px-2 py-1.5 text-gray-300 dark:text-gray-600">-</span>
+                                            </td>
+                                            <td className="border dark:border-gray-700 p-1">
+                                                <span className="block px-2 py-1.5 text-gray-300 dark:text-gray-600">-</span>
+                                            </td>
+                                            <td className="border dark:border-gray-700 p-1">
+                                                <div className="flex items-center gap-2 px-1">
+                                                    <input type="color" value={leaveConfig.color} onChange={(e) => setLeaveConfig({ ...leaveConfig, color: e.target.value })} className="w-8 h-8 border dark:border-gray-700 rounded cursor-pointer shrink-0" />
+                                                </div>
+                                            </td>
+                                            {countries.map(c => (
+                                                <td key={c.code} className="border dark:border-gray-700 p-1">
+                                                    <input
+                                                        type="text"
+                                                        value={(leaveConfig.regionCodes && leaveConfig.regionCodes[c.code]) || ''}
+                                                        placeholder="-"
+                                                        onChange={(e) => setLeaveConfig({ ...leaveConfig, regionCodes: { ...(leaveConfig.regionCodes || {}), [c.code]: e.target.value } })}
+                                                        className="w-full min-w-[90px] px-2 py-1.5 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
+                                                    />
+                                                </td>
+                                            ))}
+                                            <td className="border dark:border-gray-700 p-1"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div className="border dark:border-gray-700 rounded-lg p-6">
+                            <h3 className="text-xl font-semibold mb-4 text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                                <span className="material-icons">date_range</span> Ad-hoc Excel Report (Custom Cut-off)
+                            </h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Pick any start and end date &mdash; e.g. a payroll cut-off like the 26th of one month to the 25th of the next &mdash; and export the roster for that exact period.</p>
+                            <div className="flex flex-wrap items-end gap-3">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">From</label>
+                                    <input type="date" value={adhocFrom} onChange={(e) => setAdhocFrom(e.target.value)} className="px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-800" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">To</label>
+                                    <input type="date" value={adhocTo} onChange={(e) => setAdhocTo(e.target.value)} className="px-3 py-2 border dark:border-gray-700 rounded-lg dark:bg-gray-800" />
+                                </div>
+                                <button onClick={exportAdhocReport} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2">
+                                    <span className="material-icons text-[16px]">grid_on</span> Export Ad-hoc Report
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="border dark:border-gray-700 rounded-lg p-6">
+                            <h3 className="text-xl font-semibold mb-4">Export / Import</h3>
+                            <div className="flex gap-4">
+                                <button onClick={() => {
+                                    const data = { employees, shiftTypes, schedule, countries, holidays, leaves };
+                                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a'); a.href = url; a.download = `shift-schedule-${Date.now()}.json`; a.click();
+                                }} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+                                    <span className="material-icons text-[16px]">download</span> Export Data
+                                </button>
+                                <button onClick={() => {
+                                    const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
+                                    input.onchange = (e) => {
+                                        const file = e.target.files[0]; const reader = new FileReader();
+                                        reader.onload = (event) => {
+                                            try {
+                                                const data = JSON.parse(event.target.result);
+                                                if (data.employees) setEmployees(data.employees);
+                                                if (data.shiftTypes) setShiftTypes(data.shiftTypes);
+                                                if (data.schedule) setSchedule(data.schedule);
+                                                if (data.countries) setCountries(data.countries);
+                                                if (data.holidays) setHolidays(data.holidays);
+                                                if (data.leaves) setLeaves(data.leaves);
+                                                alert('Data imported successfully!');
+                                            } catch (error) { alert('Error importing data. Please check the file format.'); }
+                                        };
+                                        reader.readAsText(file);
+                                    };
+                                    input.click();
+                                }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                                    <span className="material-icons text-[16px]">upload</span> Import Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            if (!dataLoaded) return null;
+
+            return (
+                <div className={`min-h-screen ${darkMode ? 'dark bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
+                    <header className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
+                        <div className="max-w-7xl mx-auto px-6 py-4">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <span className="material-icons text-[32px] text-blue-600">calendar_today</span>
+                                    <h1 className="text-2xl font-bold">Shift Manager Pro</h1>
+                                </div>
+                                <button onClick={() => setDarkMode(!darkMode)} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg flex items-center">
+                                    <span className="material-icons text-[20px]">{darkMode ? 'light_mode' : 'dark_mode'}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <nav className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+                        <div className="max-w-7xl mx-auto px-6">
+                            <div className="flex gap-1">
+                                {[
+                                    { id: 'schedule', label: 'Schedule', icon: 'calendar_today' },
+                                    { id: 'employees', label: 'Employees', icon: 'group' },
+                                    { id: 'requests', label: 'Shift Requests', icon: 'how_to_reg' },
+                                    { id: 'analytics', label: 'Analytics', icon: 'analytics' },
+                                    { id: 'settings', label: 'Settings', icon: 'settings' }
+                                ].map(({ id, label, icon }) => (
+                                    <button key={id} onClick={() => setCurrentView(id)}
+                                        className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${currentView === id ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>
+                                        <span className="material-icons text-[16px]">{icon}</span> {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </nav>
+
+                    <main className="max-w-7xl mx-auto px-6 py-8">
+                        {currentView === 'schedule' && renderScheduleView()}
+                        {currentView === 'employees' && renderEmployeesView()}
+                        {currentView === 'requests' && renderShiftRequestsView()}
+                        {currentView === 'analytics' && renderAnalyticsView()}
+                        {currentView === 'settings' && renderSettingsView()}
+                    </main>
+
+                    {showAddEmployee && <AddEmployeeModal countries={countries} onClose={() => setShowAddEmployee(false)} onAdd={addEmployee} />}
+                    {editingEmployee && <EditEmployeeModal employee={editingEmployee} countries={countries} onClose={() => setEditingEmployee(null)} onUpdate={updateEmployee} />}
+
+                    {toast && (
+                        <div className={`fixed bottom-6 right-6 z-[100] px-5 py-3 rounded-lg shadow-lg text-white flex items-center gap-2 max-w-md ${toast.type === 'error' ? 'bg-red-600' : toast.type === 'warning' ? 'bg-amber-600' : 'bg-green-600'}`}>
+                            <span className="material-icons text-[18px] shrink-0">{toast.type === 'error' ? 'error' : toast.type === 'warning' ? 'warning' : 'check_circle'}</span>
+                            {toast.message}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ShiftManagementApp />);
+    </script>
+</body>
+</html>
